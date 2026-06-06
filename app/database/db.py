@@ -1,0 +1,71 @@
+"""SQLAlchemy database setup and session management."""
+
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+
+from config import DATABASE_URL
+
+
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy models."""
+    pass
+
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    echo=False,
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable WAL mode and foreign keys for SQLite."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
+def init_db():
+    """Create all tables defined in models."""
+    import app.models  # noqa: F401 — ensure all models are imported
+    Base.metadata.create_all(bind=engine)
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def get_session():
+    """
+    Get a database session as a context manager.
+
+    Usage:
+        with get_session() as session:
+            ...
+    """
+    session = SessionLocal()
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_session_direct():
+    """
+    Get a database session directly. Caller is responsible for closing.
+
+    Usage:
+        session = get_session_direct()
+        try:
+            ...
+        finally:
+            session.close()
+    """
+    return SessionLocal()

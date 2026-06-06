@@ -1,0 +1,73 @@
+/* Home Lab Manager custom styles */
+
+:root {
+    --primary: #1976d2;
+    --secondary: #424242;
+    --accent: #82b1ff;
+    --success: #4caf50;
+    --warning: #ff9800;
+    --error: #f44336;
+    --info: #2196f3;
+}
+
+.subnet-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 2px;
+    padding: 8px;
+}
+
+.ip-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.ip-cell:hover {
+    transform: scale(1.2);
+    z-index: 10;
+}
+
+.ip-cell--free {
+    background-color: #e8f5e9;
+    border: 1px solid #c8e6c9;
+}
+
+.ip-cell--static {
+    background-color: #1976d2;
+    color: white;
+    border: 1px solid #1565c0;
+}
+
+.ip-cell--dhcp {
+    background-color: #ff9800;
+    color: white;
+    border: 1px solid #f57c00;
+}
+
+.ip-cell--reserved {
+    background-color: #9e9e9e;
+    color: white;
+    border: 1px solid #757575;
+}
+
+.changelog-entry {
+    border-left: 3px solid var(--primary);
+    padding-left: 12px;
+    margin-bottom: 8px;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin: 2px;
+}
