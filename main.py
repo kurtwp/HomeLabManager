@@ -37,8 +37,9 @@ def networks_page():
 @ui.page("/networks/{network_id}")
 def network_detail_page(network_id: int):
     from app.pages.layout import page_layout
-    from app.services.network_service import get_network_by_id, get_network_utilization
+    from app.services.network_service import get_network_by_id, get_network_utilization, update_network
     from app.services.ip_service import get_ips_for_network
+    from app.services.scanner import resolve_hostname
     from app.database.db import get_session_direct
     from app.pages.subnet_grid import render_subnet_grid
     from app.pages.tag_assignment import render_tag_assignment
@@ -88,14 +89,31 @@ def network_detail_page(network_id: int):
         # Tags
         render_tag_assignment(session, network)
 
-        # IP table
-        ui.label("IP Addresses").classes("text-xl font-semibold mt-4")
+        # IP table with hostname refresh
+        with ui.row().classes("items-center justify-between mt-4"):
+            ui.label("IP Addresses").classes("text-xl font-semibold")
+            def refresh_hostnames():
+                updated = 0
+                for ip in ips:
+                    new_hostname = resolve_hostname(ip.address)
+                    if new_hostname and new_hostname != ip.hostname:
+                        ip.hostname = new_hostname
+                        updated += 1
+                session.commit()
+                ui.notify(f"Refreshed hostnames: {updated} updated", type="positive")
+                ui.navigate.to(f"/networks/{network_id}")
+
+            ui.button("Refresh Hostnames", icon="dns", on_click=refresh_hostnames).props(
+                "flat color=primary size=sm"
+            )
+
         if ips:
             columns = [
                 {"name": "address", "label": "Address", "field": "address", "align": "left"},
                 {"name": "hostname", "label": "Hostname", "field": "hostname", "align": "left"},
                 {"name": "status", "label": "Status", "field": "status", "align": "center"},
                 {"name": "type", "label": "Type", "field": "type", "align": "center"},
+                {"name": "tags", "label": "Tags", "field": "tags", "align": "left"},
             ]
             rows = [
                 {
@@ -104,6 +122,7 @@ def network_detail_page(network_id: int):
                     "hostname": ip.hostname or "—",
                     "status": ip.status.value,
                     "type": ip.assignment_type.value.upper(),
+                    "tags": ", ".join(t.name for t in ip.tags) if ip.tags else "—",
                 }
                 for ip in ips
             ]
@@ -113,10 +132,30 @@ def network_detail_page(network_id: int):
         else:
             ui.label("No IPs tracked in this network yet.").classes("text-gray-500")
 
-        # Notes
-        if network.notes:
-            ui.label("Notes").classes("text-xl font-semibold mt-4")
-            ui.markdown(network.notes).classes("w-full")
+        # Notes editor
+        with ui.card().classes("w-full mt-4"):
+            ui.label("Network Notes").classes("text-lg font-semibold mb-2")
+
+            with ui.tabs().classes("w-full") as tabs:
+                edit_tab = ui.tab("Edit")
+                preview_tab = ui.tab("Preview")
+
+            with ui.tab_panels(tabs, value=edit_tab).classes("w-full"):
+                with ui.tab_panel(edit_tab):
+                    notes_editor = ui.textarea(
+                        value=network.notes or ""
+                    ).classes("w-full").props('rows="8"')
+
+                    def save_network_notes():
+                        update_network(session, network.id, notes=notes_editor.value)
+                        ui.notify("Notes saved!", type="positive")
+
+                    ui.button("Save Notes", on_click=save_network_notes).props(
+                        "color=primary"
+                    )
+
+                with ui.tab_panel(preview_tab):
+                    ui.markdown(network.notes or "*No notes yet*").classes("w-full")
 
     session.close()
 
@@ -124,6 +163,12 @@ def network_detail_page(network_id: int):
 @ui.page("/devices")
 def devices_page():
     render_devices()
+
+
+@ui.page("/devices/{device_id}")
+def device_detail_page(device_id: int):
+    from app.pages.device_detail import render_device_detail
+    render_device_detail(device_id)
 
 
 @ui.page("/ips")

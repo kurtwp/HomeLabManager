@@ -3,11 +3,12 @@
 from nicegui import ui
 
 from app.database.db import get_session_direct as get_session
+from app.models.device import Device, DeviceType
+from app.models.tag import Tag
 from app.services.device_service import (
     create_device,
     get_all_devices,
     get_all_device_types,
-    create_device_type,
     delete_device,
 )
 from app.utils.validators import is_valid_mac
@@ -30,42 +31,81 @@ def render_devices():
 
         ui.separator().classes("my-4")
 
-        # Devices table
-        devices_container = ui.column().classes("w-full")
+        # Filter controls
+        device_types = get_all_device_types(session)
+        type_options = {0: "All Types"}
+        type_options.update({dt.id: dt.name for dt in device_types})
+
+        all_tags = session.query(Tag).order_by(Tag.name).all()
+        tag_options = {0: "All Tags"}
+        tag_options.update({t.id: t.name for t in all_tags})
+
+        with ui.row().classes("w-full gap-2 items-center flex-wrap"):
+            type_filter = ui.select(
+                type_options, value=0, label="Device Type"
+            ).classes("w-48")
+            tag_filter = ui.select(
+                tag_options, value=0, label="Tag"
+            ).classes("w-44")
+            ui.button("Filter", on_click=lambda: refresh_devices()).props("flat")
+
+        # Devices list
+        devices_container = ui.column().classes("w-full mt-4 gap-2")
 
         def refresh_devices():
             devices_container.clear()
-            devices = get_all_devices(session)
             with devices_container:
+                query = session.query(Device)
+                if type_filter.value and type_filter.value != 0:
+                    query = query.filter(Device.device_type_id == type_filter.value)
+                if tag_filter.value and tag_filter.value != 0:
+                    query = query.filter(
+                        Device.tags.any(Tag.id == tag_filter.value)
+                    )
+                devices = query.order_by(Device.name).all()
+
                 if not devices:
-                    ui.label("No devices tracked yet.").classes("text-gray-500")
+                    ui.label("No devices found.").classes("text-gray-500")
                     return
 
-                columns = [
-                    {"name": "name", "label": "Name", "field": "name", "align": "left"},
-                    {"name": "type", "label": "Type", "field": "type", "align": "left"},
-                    {"name": "manufacturer", "label": "Manufacturer", "field": "manufacturer", "align": "left"},
-                    {"name": "model", "label": "Model", "field": "model", "align": "left"},
-                    {"name": "mac", "label": "MAC Address", "field": "mac", "align": "left"},
-                    {"name": "ips", "label": "IPs", "field": "ips", "align": "center"},
-                ]
-
-                rows = []
                 for d in devices:
-                    rows.append({
-                        "id": d.id,
-                        "name": d.name,
-                        "type": d.device_type.name if d.device_type else "—",
-                        "manufacturer": d.manufacturer or "—",
-                        "model": d.model or "—",
-                        "mac": format_mac(d.mac_address) or "—",
-                        "ips": len(d.ip_addresses),
-                    })
+                    with ui.card().classes("w-full cursor-pointer").on(
+                        "click", lambda dev=d: ui.navigate.to(f"/devices/{dev.id}")
+                    ):
+                        with ui.row().classes("w-full items-center justify-between"):
+                            with ui.row().classes("items-center gap-3"):
+                                # Device type icon
+                                icon_name = d.device_type.icon if d.device_type and d.device_type.icon else "devices_other"
+                                ui.icon(icon_name).classes("text-xl text-gray-600")
+                                ui.label(d.name).classes("font-semibold")
+                                if d.device_type:
+                                    ui.badge(d.device_type.name).props("color=gray outline").classes("text-xs")
+                                # Tag chips
+                                for tag in d.tags:
+                                    ui.html(
+                                        f'<span style="font-size:0.65rem; padding:1px 8px; '
+                                        f'border-radius:10px; background:{tag.color}20; '
+                                        f'color:{tag.color}; border:1px solid {tag.color}40; '
+                                        f'font-weight:500;">{tag.name}</span>'
+                                    )
 
-                table = ui.table(
-                    columns=columns, rows=rows, row_key="id"
-                ).classes("w-full")
-                table.props("flat bordered dense")
+                            with ui.row().classes("items-center gap-4"):
+                                info_parts = []
+                                if d.manufacturer:
+                                    info_parts.append(d.manufacturer)
+                                if d.model:
+                                    info_parts.append(d.model)
+                                if info_parts:
+                                    ui.label(" · ".join(info_parts)).classes(
+                                        "text-sm text-gray-400"
+                                    )
+                                if d.mac_address:
+                                    ui.label(format_mac(d.mac_address)).classes(
+                                        "text-xs font-mono text-gray-400"
+                                    )
+                                ui.badge(f"{len(d.ip_addresses)} IPs").props(
+                                    "color=blue outline"
+                                ).classes("text-xs")
 
         refresh_devices()
 
@@ -73,12 +113,11 @@ def render_devices():
     with ui.dialog() as add_dialog, ui.card().classes("w-96"):
         ui.label("Add Device").classes("text-xl font-bold mb-2")
 
-        device_types = get_all_device_types(session)
-        type_options = {dt.id: dt.name for dt in device_types}
+        dt_options = {dt.id: dt.name for dt in device_types}
 
         name_input = ui.input("Name *", placeholder="e.g. Office Printer").classes("w-full")
         type_select = ui.select(
-            type_options, label="Device Type"
+            dt_options, label="Device Type"
         ).classes("w-full")
         manufacturer_input = ui.input("Manufacturer", placeholder="e.g. HP").classes("w-full")
         model_input = ui.input("Model", placeholder="e.g. LaserJet Pro").classes("w-full")

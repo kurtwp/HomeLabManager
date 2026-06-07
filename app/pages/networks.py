@@ -3,6 +3,8 @@
 from nicegui import ui
 
 from app.database.db import get_session_direct as get_session
+from app.models.tag import Tag
+from app.models.network import Network
 from app.services.network_service import (
     create_network,
     get_all_networks,
@@ -31,17 +33,29 @@ def render_networks():
 
         ui.separator().classes("my-4")
 
+        # Filter controls
+        all_tags = session.query(Tag).order_by(Tag.name).all()
+        tag_options = {0: "All Tags"}
+        tag_options.update({t.id: t.name for t in all_tags})
+
+        with ui.row().classes("w-full gap-2 items-center"):
+            tag_filter = ui.select(
+                tag_options, value=0, label="Filter by Tag"
+            ).classes("w-44")
+            ui.button("Filter", on_click=lambda: refresh_networks()).props("flat")
+
         # Network list
-        networks_container = ui.column().classes("w-full gap-3")
+        networks_container = ui.column().classes("w-full gap-3 mt-2")
 
         def refresh_networks():
             networks_container.clear()
             networks = get_all_networks(session)
+            # Apply tag filter
+            if tag_filter.value and tag_filter.value != 0:
+                networks = [n for n in networks if any(t.id == tag_filter.value for t in n.tags)]
             with networks_container:
                 if not networks:
-                    ui.label("No networks configured. Add one to get started.").classes(
-                        "text-gray-500"
-                    )
+                    ui.label("No networks found.").classes("text-gray-500")
                     return
 
                 for net in networks:
@@ -54,6 +68,14 @@ def render_networks():
                                     if net.vlan_id:
                                         ui.badge(f"VLAN {net.vlan_id}").props(
                                             "color=blue outline"
+                                        )
+                                    # Tag chips
+                                    for tag in net.tags:
+                                        ui.html(
+                                            f'<span style="font-size:0.65rem; padding:1px 8px; '
+                                            f'border-radius:10px; background:{tag.color}20; '
+                                            f'color:{tag.color}; border:1px solid {tag.color}40; '
+                                            f'font-weight:500;">{tag.name}</span>'
                                         )
                                 ui.label(net.cidr).classes("font-mono text-sm")
                                 if net.description:

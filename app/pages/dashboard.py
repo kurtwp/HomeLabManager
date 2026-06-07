@@ -1,14 +1,15 @@
-"""Dashboard page — overview of networks, devices, IPs."""
+"""Dashboard page — overview of networks, devices, IPs with quick-add forms."""
 
 from nicegui import ui
 
 from app.database.db import get_session_direct as get_session
 from app.models.network import Network
-from app.models.ip_address import IPAddress, IPStatus
+from app.models.ip_address import IPAddress, IPStatus, AssignmentType
 from app.models.device import Device
 from app.models.scan_log import ScanLog
-from app.services.network_service import get_network_utilization
-from app.services.ip_service import get_recently_modified_ips
+from app.services.network_service import get_all_networks, get_network_utilization
+from app.services.ip_service import get_recently_modified_ips, create_ip
+from app.services.device_service import create_device, get_all_device_types
 from app.pages.layout import page_layout
 
 
@@ -48,7 +49,9 @@ def render_dashboard():
                     for net in networks[:8]:
                         util = get_network_utilization(session, net.id)
                         with ui.row().classes("items-center w-full gap-2"):
-                            ui.label(f"{net.name} ({net.cidr})").classes("w-48 truncate")
+                            ui.link(
+                                f"{net.name} ({net.cidr})", f"/networks/{net.id}"
+                            ).classes("w-48 truncate")
                             ui.linear_progress(
                                 value=util.get("utilization_percent", 0) / 100,
                                 show_value=False,
@@ -85,6 +88,14 @@ def render_dashboard():
                             ui.label(ip.hostname or "").classes(
                                 "text-sm text-gray-500"
                             )
+                            # Show tags
+                            for tag in ip.tags[:3]:
+                                ui.html(
+                                    f'<span style="font-size:0.6rem; padding:1px 6px; '
+                                    f'border-radius:8px; background:{tag.color}20; '
+                                    f'color:{tag.color}; border:1px solid {tag.color}40;">'
+                                    f'{tag.name}</span>'
+                                )
                 else:
                     ui.label("No IPs tracked yet.").classes("text-gray-500")
 
@@ -100,6 +111,73 @@ def render_dashboard():
                     ui.label(f"Hosts found: {recent_scan.hosts_found}")
                     ui.label(f"Added: {recent_scan.hosts_added}")
                     ui.label(f"Marked inactive: {recent_scan.hosts_removed}")
+
+        # --- Quick-Add Section ---
+        ui.separator().classes("my-4")
+        ui.label("Quick Add").classes("text-xl font-semibold mb-2")
+
+        with ui.row().classes("w-full gap-4 flex-wrap"):
+            # Quick-add IP
+            with ui.card().classes("flex-1 min-w-[350px]"):
+                ui.label("Add IP Address").classes("text-md font-semibold mb-2")
+                net_options = {n.id: f"{n.name} ({n.cidr})" for n in networks}
+
+                qa_ip_addr = ui.input("IP Address", placeholder="192.168.1.100").classes("w-full")
+                qa_ip_net = ui.select(net_options, label="Network").classes("w-full")
+                qa_ip_host = ui.input("Hostname (optional)").classes("w-full")
+                qa_ip_type = ui.select(
+                    {t.value: t.value.upper() for t in AssignmentType},
+                    value="static", label="Type"
+                ).classes("w-full")
+
+                def quick_add_ip():
+                    if not qa_ip_addr.value or not qa_ip_net.value:
+                        ui.notify("IP and network required", type="warning")
+                        return
+                    try:
+                        create_ip(
+                            session,
+                            address=qa_ip_addr.value,
+                            network_id=qa_ip_net.value,
+                            hostname=qa_ip_host.value or None,
+                            assignment_type=AssignmentType(qa_ip_type.value),
+                        )
+                        ui.notify(f"Added {qa_ip_addr.value}", type="positive")
+                        qa_ip_addr.value = ""
+                        qa_ip_host.value = ""
+                    except Exception as e:
+                        ui.notify(f"Error: {e}", type="negative")
+
+                ui.button("Add IP", on_click=quick_add_ip).props("color=primary dense")
+
+            # Quick-add Device
+            with ui.card().classes("flex-1 min-w-[350px]"):
+                ui.label("Add Device").classes("text-md font-semibold mb-2")
+                device_types = get_all_device_types(session)
+                dt_options = {dt.id: dt.name for dt in device_types}
+
+                qa_dev_name = ui.input("Device Name", placeholder="My Server").classes("w-full")
+                qa_dev_type = ui.select(dt_options, label="Type").classes("w-full")
+                qa_dev_mac = ui.input("MAC Address (optional)", placeholder="AA:BB:CC:DD:EE:FF").classes("w-full")
+
+                def quick_add_device():
+                    if not qa_dev_name.value:
+                        ui.notify("Name is required", type="warning")
+                        return
+                    try:
+                        create_device(
+                            session,
+                            name=qa_dev_name.value,
+                            device_type_id=qa_dev_type.value,
+                            mac_address=qa_dev_mac.value or None,
+                        )
+                        ui.notify(f"Added {qa_dev_name.value}", type="positive")
+                        qa_dev_name.value = ""
+                        qa_dev_mac.value = ""
+                    except Exception as e:
+                        ui.notify(f"Error: {e}", type="negative")
+
+                ui.button("Add Device", on_click=quick_add_device).props("color=primary dense")
 
     session.close()
 

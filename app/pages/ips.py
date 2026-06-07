@@ -5,6 +5,7 @@ from nicegui import ui
 from app.database.db import get_session_direct as get_session
 from app.models.ip_address import IPAddress, AssignmentType, IPStatus
 from app.models.network import Network
+from app.models.tag import Tag, ip_tags
 from app.services.ip_service import create_ip, get_ips_for_network, get_ip_by_id, update_ip
 from app.services.network_service import get_all_networks
 from app.utils.formatters import format_timestamp
@@ -31,15 +32,22 @@ def render_ips():
         network_options = {0: "All Networks"}
         network_options.update({n.id: f"{n.name} ({n.cidr})" for n in networks})
 
-        with ui.row().classes("w-full gap-2 items-center"):
+        all_tags = session.query(Tag).order_by(Tag.name).all()
+        tag_options = {0: "All Tags"}
+        tag_options.update({t.id: t.name for t in all_tags})
+
+        with ui.row().classes("w-full gap-2 items-center flex-wrap"):
             network_filter = ui.select(
                 network_options, value=0, label="Network"
-            ).classes("w-64")
+            ).classes("w-56")
             status_filter = ui.select(
                 {"all": "All", "active": "Active", "inactive": "Inactive"},
                 value="all",
                 label="Status",
-            ).classes("w-40")
+            ).classes("w-36")
+            tag_filter = ui.select(
+                tag_options, value=0, label="Tag"
+            ).classes("w-44")
             ui.button("Filter", on_click=lambda: refresh_ips()).props("flat")
 
         # IP table
@@ -55,35 +63,47 @@ def render_ips():
                     query = query.filter(
                         IPAddress.status == IPStatus(status_filter.value)
                     )
+                if tag_filter.value and tag_filter.value != 0:
+                    query = query.filter(
+                        IPAddress.tags.any(Tag.id == tag_filter.value)
+                    )
                 ips = query.order_by(IPAddress.address).all()
 
                 if not ips:
                     ui.label("No IP addresses found.").classes("text-gray-500")
                     return
 
-                columns = [
-                    {"name": "status", "label": "", "field": "status", "align": "center"},
-                    {"name": "address", "label": "IP Address", "field": "address", "align": "left"},
-                    {"name": "hostname", "label": "Hostname", "field": "hostname", "align": "left"},
-                    {"name": "type", "label": "Type", "field": "type", "align": "center"},
-                    {"name": "network", "label": "Network", "field": "network", "align": "left"},
-                    {"name": "last_seen", "label": "Last Seen", "field": "last_seen", "align": "left"},
-                ]
-
-                rows = []
+                # Render as cards for richer display with tags
                 for ip in ips:
-                    rows.append({
-                        "id": ip.id,
-                        "status": "🟢" if ip.status == IPStatus.ACTIVE else "🔴" if ip.status == IPStatus.INACTIVE else "⚪",
-                        "address": ip.address,
-                        "hostname": ip.hostname or "—",
-                        "type": ip.assignment_type.value.upper(),
-                        "network": ip.network.name if ip.network else "—",
-                        "last_seen": format_timestamp(ip.last_seen),
-                    })
+                    with ui.card().classes("w-full cursor-pointer").on(
+                        "click", lambda i=ip: ui.navigate.to(f"/ips/{i.id}")
+                    ):
+                        with ui.row().classes("w-full items-center justify-between"):
+                            with ui.row().classes("items-center gap-3"):
+                                # Status indicator
+                                status_icon = "🟢" if ip.status == IPStatus.ACTIVE else "🔴" if ip.status == IPStatus.INACTIVE else "⚪"
+                                ui.label(status_icon)
+                                ui.label(ip.address).classes("font-mono font-semibold")
+                                ui.label(ip.hostname or "—").classes("text-gray-500")
+                                ui.badge(ip.assignment_type.value.upper()).props(
+                                    f'color={"blue" if ip.assignment_type == AssignmentType.STATIC else "orange"} outline'
+                                ).classes("text-xs")
+                                # Tag chips
+                                for tag in ip.tags:
+                                    ui.html(
+                                        f'<span style="font-size:0.65rem; padding:1px 8px; '
+                                        f'border-radius:10px; background:{tag.color}20; '
+                                        f'color:{tag.color}; border:1px solid {tag.color}40; '
+                                        f'font-weight:500;">{tag.name}</span>'
+                                    )
 
-                table = ui.table(columns=columns, rows=rows, row_key="id").classes("w-full")
-                table.props("flat bordered dense")
+                            with ui.row().classes("items-center gap-4"):
+                                ui.label(ip.network.name if ip.network else "").classes(
+                                    "text-sm text-gray-400"
+                                )
+                                ui.label(format_timestamp(ip.last_seen)).classes(
+                                    "text-xs text-gray-400"
+                                )
 
         refresh_ips()
 
