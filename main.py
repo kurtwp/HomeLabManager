@@ -12,6 +12,8 @@ from app.pages.ips import render_ips, render_ip_detail
 from app.pages.documentation import render_documentation, render_doc_detail
 from app.pages.history import render_history
 from app.pages.search import render_search
+from app.pages.tags import render_tags
+from app.pages.import_export import render_import_export
 
 
 # Initialize database and seed defaults
@@ -34,11 +36,12 @@ def networks_page():
 
 @ui.page("/networks/{network_id}")
 def network_detail_page(network_id: int):
-    # Placeholder — will expand with subnet visualization
     from app.pages.layout import page_layout
     from app.services.network_service import get_network_by_id, get_network_utilization
     from app.services.ip_service import get_ips_for_network
     from app.database.db import get_session_direct
+    from app.pages.subnet_grid import render_subnet_grid
+    from app.pages.tag_assignment import render_tag_assignment
 
     page_layout()
     session = get_session_direct()
@@ -77,7 +80,15 @@ def network_detail_page(network_id: int):
                 f'{util.get("total", 0)} total — {util.get("utilization_percent", 0)}%'
             ).classes("text-sm text-gray-500")
 
-        # IP list
+        # Visual subnet grid
+        with ui.card().classes("w-full mt-4"):
+            ui.label("Subnet Map").classes("text-lg font-semibold mb-2")
+            render_subnet_grid(network.cidr, ips)
+
+        # Tags
+        render_tag_assignment(session, network)
+
+        # IP table
         ui.label("IP Addresses").classes("text-xl font-semibold mt-4")
         if ips:
             columns = [
@@ -138,6 +149,16 @@ def doc_detail_page(doc_id: int):
 @ui.page("/history")
 def history_page():
     render_history()
+
+
+@ui.page("/tags")
+def tags_page():
+    render_tags()
+
+
+@ui.page("/import-export")
+def import_export_page():
+    render_import_export()
 
 
 @ui.page("/search")

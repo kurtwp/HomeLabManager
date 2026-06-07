@@ -143,6 +143,8 @@ def render_ip_detail(ip_id: int):
         session.close()
         return
 
+    from app.pages.tag_assignment import render_tag_assignment
+
     with ui.column().classes("page-container w-full"):
         # Header
         with ui.row().classes("items-center gap-4"):
@@ -156,7 +158,7 @@ def render_ip_detail(ip_id: int):
 
         ui.separator().classes("my-4")
 
-        with ui.row().classes("w-full gap-4"):
+        with ui.row().classes("w-full gap-4 flex-wrap"):
             # Info panel
             with ui.card().classes("w-80"):
                 ui.label("Details").classes("text-lg font-semibold mb-2")
@@ -169,7 +171,7 @@ def render_ip_detail(ip_id: int):
                     ui.label(f"Device: {ip.device.name}")
 
             # Notes editor
-            with ui.card().classes("flex-1"):
+            with ui.card().classes("flex-1 min-w-[400px]"):
                 ui.label("Notes (Markdown)").classes("text-lg font-semibold mb-2")
 
                 with ui.tabs().classes("w-full") as tabs:
@@ -192,5 +194,8 @@ def render_ip_detail(ip_id: int):
 
                     with ui.tab_panel(preview_tab):
                         ui.markdown(ip.notes or "*No notes yet*").classes("w-full")
+
+        # Tags
+        render_tag_assignment(session, ip)
 
     session.close()
