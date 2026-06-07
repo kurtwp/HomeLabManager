@@ -1,5 +1,5 @@
 """Home Lab IP Management & Equipment Application — NiceGUI entry point."""
-
+#
 from nicegui import ui, app
 
 from config import APP_TITLE, APP_PORT
