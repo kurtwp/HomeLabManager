@@ -378,31 +378,50 @@ def sync_clients(session: Session) -> dict:
     skipped = 0
     errors = []
 
+    # Pre-load networks for matching
+    import ipaddress as ipaddress_mod
+    networks = session.query(Network).all()
+    network_cidrs = []
+    for net in networks:
+        try:
+            network_cidrs.append((net, ipaddress_mod.ip_network(net.cidr, strict=False)))
+        except ValueError:
+            pass
+
+    skipped_ips = []
+
     for client in unifi_clients:
         try:
-            ip_addr = client.get("ip") or client.get("fixedIp")
+            ip_addr = (
+                client.get("ip")
+                or client.get("ipAddress")
+                or client.get("fixedIp")
+                or client.get("fixed_ip")
+            )
             if not ip_addr:
                 skipped += 1
                 continue
 
-            mac = (client.get("mac") or "").upper()
+            mac = (client.get("mac") or client.get("macAddress") or "").upper().replace("-", ":")
             hostname = client.get("name") or client.get("hostname")
-            is_fixed = client.get("useFixedIp", False)
+            is_fixed = client.get("useFixedIp", False) or client.get("use_fixed_ip", False)
 
             # Find which network this IP belongs to
-            import ipaddress
-            networks = session.query(Network).all()
             target_network = None
-            for net in networks:
-                try:
-                    if ipaddress.ip_address(ip_addr) in ipaddress.ip_network(net.cidr, strict=False):
+            try:
+                ip_obj = ipaddress_mod.ip_address(ip_addr)
+                for net, net_obj in network_cidrs:
+                    if ip_obj in net_obj:
                         target_network = net
                         break
-                except ValueError:
-                    continue
+            except ValueError:
+                skipped += 1
+                errors.append(f"Invalid IP: {ip_addr}")
+                continue
 
             if not target_network:
                 skipped += 1
+                skipped_ips.append(ip_addr)
                 continue
 
             # Check if IP already exists
@@ -446,6 +465,20 @@ def sync_clients(session: Session) -> dict:
             errors.append(f"Client '{client.get('name', client.get('mac', '?'))}': {e}")
 
     session.commit()
+
+    # Add skipped IPs info to errors for visibility
+    if skipped_ips:
+        missing_subnets = set()
+        for ip in skipped_ips:
+            parts = ip.split(".")
+            if len(parts) == 4:
+                missing_subnets.add(f"{parts[0]}.{parts[1]}.{parts[2]}.0/24")
+        errors.append(
+            f"Skipped {len(skipped_ips)} IPs with no matching local network. "
+            f"Missing subnets: {', '.join(sorted(missing_subnets))}. "
+            f"Sample IPs: {', '.join(skipped_ips[:8])}"
+        )
+
     return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
 
 
