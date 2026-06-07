@@ -237,8 +237,10 @@ def sync_networks(session: Session) -> dict:
             if "/" not in subnet:
                 subnet = f"{subnet}/24"
 
-            # Check if network already exists by CIDR
+            # Check if network already exists by CIDR or by name
             existing = session.query(Network).filter(Network.cidr == subnet).first()
+            if not existing:
+                existing = session.query(Network).filter(Network.name == name).first()
 
             if existing:
                 # Update name/vlan if changed
@@ -299,7 +301,7 @@ def sync_devices(session: Session) -> dict:
     for udev in unifi_devices:
         try:
             name = udev.get("name") or udev.get("hostname") or udev.get("mac", "Unknown")
-            mac = udev.get("mac", "").upper()
+            mac = (udev.get("mac") or "").upper().replace("-", ":")
             model = udev.get("model")
             dev_type = udev.get("type", "").lower()  # ugw, usw, uap
 
@@ -313,8 +315,20 @@ def sync_devices(session: Session) -> dict:
             else:
                 device_type_id = type_map.get("other")
 
-            # Find by MAC address
-            existing = session.query(Device).filter(Device.mac_address == mac).first() if mac else None
+            # Find existing by MAC address (normalized) or by name
+            existing = None
+            if mac:
+                # Normalize: search for MAC with or without colons
+                mac_normalized = mac.replace(":", "").replace("-", "").upper()
+                all_devices = session.query(Device).filter(Device.mac_address.isnot(None)).all()
+                for d in all_devices:
+                    d_mac = (d.mac_address or "").replace(":", "").replace("-", "").upper()
+                    if d_mac == mac_normalized:
+                        existing = d
+                        break
+            if not existing:
+                # Fall back to name match
+                existing = session.query(Device).filter(Device.name == name).first()
 
             if existing:
                 changed = False
