@@ -1,9 +1,6 @@
 # Environment & secrets
 .env
 
-# Kiro
-.kiro/
-
 # Python
 __pycache__/
 *.py[cod]
