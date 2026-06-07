@@ -37,6 +37,11 @@ class Device(Base):
     mac_address: Mapped[str | None] = mapped_column(String(17), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Physical location tracking
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rack_position: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    shelf: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # Foreign keys
     device_type_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("device_types.id"), nullable=True

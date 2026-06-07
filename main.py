@@ -16,6 +16,10 @@ from app.pages.tags import render_tags
 from app.pages.import_export import render_import_export
 from app.pages.unifi import render_unifi
 from app.pages.scheduler_page import render_scheduler
+from app.pages.calculator import render_calculator
+from app.pages.reports import render_reports
+from app.pages.locations import render_locations
+from app.pages.custom_fields import render_custom_fields
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -225,6 +229,26 @@ def scheduler_page():
 @ui.page("/search")
 def search_page(q: str = ""):
     render_search(q)
+
+
+@ui.page("/calculator")
+def calculator_page():
+    render_calculator()
+
+
+@ui.page("/reports")
+def reports_page():
+    render_reports()
+
+
+@ui.page("/locations")
+def locations_page():
+    render_locations()
+
+
+@ui.page("/custom-fields")
+def custom_fields_page():
+    render_custom_fields()
 
 
 # --- Serve static CSS ---

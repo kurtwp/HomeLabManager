@@ -7,6 +7,8 @@ from app.models.tag import Tag, ip_tags, device_tags, network_tags
 from app.models.documentation import Documentation
 from app.models.changelog import Changelog
 from app.models.scan_log import ScanLog
+from app.models.custom_field import CustomFieldDefinition, CustomFieldValue
+from app.models.saved_search import SavedSearch
 
 __all__ = [
     "Network",
@@ -20,4 +22,7 @@ __all__ = [
     "Documentation",
     "Changelog",
     "ScanLog",
+    "CustomFieldDefinition",
+    "CustomFieldValue",
+    "SavedSearch",
 ]

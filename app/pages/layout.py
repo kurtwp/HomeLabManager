@@ -34,6 +34,15 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("History", "/history").classes("nav-link")
 
         with ui.row().classes("items-center gap-2"):
+            # Tools menu
+            with ui.button(icon="build").props("flat round color=white size=sm"):
+                with ui.menu():
+                    ui.menu_item("Calculator", lambda: ui.navigate.to("/calculator"))
+                    ui.menu_item("Reports", lambda: ui.navigate.to("/reports"))
+                    ui.menu_item("Locations", lambda: ui.navigate.to("/locations"))
+                    ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
+
+        with ui.row().classes("items-center gap-2"):
             search_input = ui.input(placeholder="Search...").props(
                 'dense outlined dark color="white"'
             ).classes("w-64")

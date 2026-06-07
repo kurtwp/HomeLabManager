@@ -5,6 +5,7 @@ from nicegui import ui
 from app.database.db import get_session_direct as get_session
 from app.models.documentation import Documentation, DocCategory
 from app.pages.layout import page_layout
+from app.services.doc_templates import get_template_names, get_template
 
 
 def render_documentation():
@@ -16,9 +17,13 @@ def render_documentation():
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label("Knowledge Base").classes("text-3xl font-bold")
-            ui.button("New Article", on_click=lambda: add_dialog.open()).props(
-                "color=primary icon=add"
-            )
+            with ui.row().classes("gap-2"):
+                ui.button("New from Template", on_click=lambda: template_dialog.open()).props(
+                    "color=secondary icon=description"
+                )
+                ui.button("New Article", on_click=lambda: add_dialog.open()).props(
+                    "color=primary icon=add"
+                )
 
         ui.separator().classes("my-4")
 
@@ -122,6 +127,36 @@ def render_documentation():
         with ui.row().classes("justify-end gap-2 mt-2"):
             ui.button("Cancel", on_click=add_dialog.close).props("flat")
             ui.button("Save", on_click=save_article).props("color=primary")
+
+    # Template selection dialog
+    with ui.dialog() as template_dialog, ui.card().classes("w-96"):
+        ui.label("New from Template").classes("text-xl font-bold mb-2")
+        ui.label("Choose a template to start with:").classes("text-sm text-gray-500 mb-4")
+
+        template_names = get_template_names()
+        template_select = ui.select(
+            {t: t.replace("-", " ").title() for t in template_names},
+            value=template_names[0] if template_names else None,
+            label="Template",
+        ).classes("w-full")
+
+        def use_template():
+            tmpl = get_template(template_select.value)
+            if tmpl:
+                doc = Documentation(
+                    title=tmpl["title"],
+                    body=tmpl["body"],
+                    category=DocCategory(tmpl["category"]),
+                )
+                session.add(doc)
+                session.commit()
+                ui.notify("Article created from template!", type="positive")
+                template_dialog.close()
+                ui.navigate.to(f"/docs/{doc.id}")
+
+        with ui.row().classes("justify-end gap-2 mt-4"):
+            ui.button("Cancel", on_click=template_dialog.close).props("flat")
+            ui.button("Create", on_click=use_template).props("color=primary")
 
     session.close()
 

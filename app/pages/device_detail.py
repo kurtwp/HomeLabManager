@@ -7,6 +7,7 @@ from app.services.device_service import get_device_by_id, update_device
 from app.utils.formatters import format_timestamp, format_mac
 from app.pages.layout import page_layout
 from app.pages.tag_assignment import render_tag_assignment
+from app.pages.custom_fields import render_custom_fields_for_entity
 
 
 def render_device_detail(device_id: int):
@@ -82,5 +83,36 @@ def render_device_detail(device_id: int):
 
         # Tags
         render_tag_assignment(session, device)
+
+        # Physical Location
+        with ui.card().classes("w-full mt-4"):
+            ui.label("Physical Location").classes("text-lg font-semibold mb-2")
+            with ui.row().classes("gap-4 items-end"):
+                loc_input = ui.input(
+                    "Location (Room/Building)", value=device.location or ""
+                ).classes("w-64")
+                rack_input = ui.input(
+                    "Rack Position", value=device.rack_position or ""
+                ).classes("w-48")
+                shelf_input = ui.input(
+                    "Shelf", value=device.shelf or ""
+                ).classes("w-48")
+
+            def save_location():
+                update_device(
+                    session,
+                    device.id,
+                    location=loc_input.value or None,
+                    rack_position=rack_input.value or None,
+                    shelf=shelf_input.value or None,
+                )
+                ui.notify("Location saved!", type="positive")
+
+            ui.button("Save Location", on_click=save_location).props(
+                "color=primary size=sm"
+            ).classes("mt-2")
+
+        # Custom Fields
+        render_custom_fields_for_entity(session, "device", device.id)
 
     session.close()

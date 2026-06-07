@@ -4,6 +4,11 @@ from nicegui import ui
 
 from app.database.db import get_session_direct as get_session
 from app.services.search_service import global_search
+from app.services.saved_search_service import (
+    create_saved_search,
+    get_all_saved_searches,
+    delete_saved_search,
+)
 from app.pages.layout import page_layout
 
 
@@ -16,6 +21,49 @@ def render_search(query: str = ""):
     with ui.column().classes("page-container w-full"):
         ui.label(f'Search Results for "{query}"').classes("text-3xl font-bold")
         ui.separator().classes("my-4")
+
+        # Saved searches section
+        saved_searches = get_all_saved_searches(session)
+
+        with ui.card().classes("w-full mb-4"):
+            with ui.row().classes("items-center justify-between"):
+                ui.label("Saved Searches").classes("text-lg font-semibold")
+                if query:
+                    def save_current_search():
+                        save_name = save_name_input.value or f"Search: {query}"
+                        create_saved_search(session, save_name, "all", {"query": query})
+                        ui.notify(f"Search saved as '{save_name}'", type="positive")
+                        ui.navigate.to(f"/search?q={query}")
+
+                    with ui.row().classes("items-center gap-2"):
+                        save_name_input = ui.input(
+                            placeholder="Name this search...", value=f"Search: {query}"
+                        ).classes("w-48").props("dense")
+                        ui.button(
+                            "Save Search", icon="bookmark", on_click=save_current_search
+                        ).props("flat size=sm color=primary")
+
+            if saved_searches:
+                with ui.row().classes("gap-2 mt-2 flex-wrap"):
+                    for ss in saved_searches:
+                        with ui.card().classes("p-2"):
+                            with ui.row().classes("items-center gap-1"):
+                                ui.button(
+                                    ss.name,
+                                    on_click=lambda s=ss: ui.navigate.to(
+                                        f"/search?q={s.filters.get('query', '')}"
+                                    ),
+                                ).props("flat dense size=sm color=primary")
+                                ui.button(
+                                    icon="close",
+                                    on_click=lambda s=ss: (
+                                        delete_saved_search(session, s.id),
+                                        ui.notify("Deleted", type="info"),
+                                        ui.navigate.to(f"/search?q={query}"),
+                                    ),
+                                ).props("flat round dense size=xs color=negative")
+            else:
+                ui.label("No saved searches yet.").classes("text-sm text-gray-500 mt-2")
 
         if not query:
             ui.label("Enter a search term in the header search bar.").classes(
