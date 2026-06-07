@@ -301,17 +301,32 @@ def sync_devices(session: Session) -> dict:
     for udev in unifi_devices:
         try:
             name = udev.get("name") or udev.get("hostname") or udev.get("mac", "Unknown")
-            mac = (udev.get("mac") or "").upper().replace("-", ":")
+            mac = (udev.get("mac") or udev.get("macAddress") or "").upper().replace("-", ":")
             model = udev.get("model")
-            dev_type = udev.get("type", "").lower()  # ugw, usw, uap
+            dev_type = (udev.get("type") or "").lower()
+            features = udev.get("features", [])
 
             # Map UniFi device type to our types
-            if "gw" in dev_type or "gateway" in dev_type:
+            is_gateway = (
+                "gw" in dev_type or "gateway" in dev_type
+                or "dream machine" in (model or "").lower()
+                or "udm" in (model or "").lower()
+            )
+            is_ap = (
+                "ap" in dev_type or "access point" in dev_type
+                or "accessPoint" in features
+            )
+            is_switch = (
+                "sw" in dev_type or "switch" in dev_type
+                or "switching" in features
+            )
+
+            if is_gateway:
                 device_type_id = type_map.get("gateway")
-            elif "sw" in dev_type or "switch" in dev_type:
-                device_type_id = type_map.get("switch")
-            elif "ap" in dev_type or "access point" in dev_type:
+            elif is_ap:
                 device_type_id = type_map.get("access point")
+            elif is_switch:
+                device_type_id = type_map.get("switch")
             else:
                 device_type_id = type_map.get("other")
 
@@ -338,8 +353,12 @@ def sync_devices(session: Session) -> dict:
                 if model and existing.model != model:
                     existing.model = model
                     changed = True
+                if mac and not existing.mac_address:
+                    existing.mac_address = mac
+                    changed = True
                 if changed:
                     updated += 1
+                device_record = existing
             else:
                 new_dev = Device(
                     name=name,
@@ -361,6 +380,67 @@ def sync_devices(session: Session) -> dict:
                     comment="Imported from UniFi controller",
                 )
                 created += 1
+                device_record = new_dev
+
+            # Create/update IP address for this device
+            dev_ip = udev.get("ipAddress")
+            if dev_ip and device_record:
+                import ipaddress as _ipa
+                # Find matching network
+                target_net = None
+                for net in session.query(Network).all():
+                    try:
+                        if _ipa.ip_address(dev_ip) in _ipa.ip_network(net.cidr, strict=False):
+                            target_net = net
+                            break
+                    except ValueError:
+                        continue
+
+                # If IP doesn't match any network (e.g. WAN IP on gateway), use gateway IP instead
+                if not target_net and is_gateway:
+                    # This is likely the gateway device - assign its LAN IP
+                    for net in session.query(Network).all():
+                        if net.gateway:
+                            dev_ip = net.gateway
+                            target_net = net
+                            break
+                    # If no gateway stored, use the first network's .254
+                    if not target_net:
+                        first_net = session.query(Network).first()
+                        if first_net:
+                            try:
+                                net_obj = _ipa.ip_network(first_net.cidr, strict=False)
+                                # Use last usable host as gateway IP
+                                hosts = list(net_obj.hosts())
+                                dev_ip = str(hosts[-1]) if hosts else None
+                                target_net = first_net
+                            except ValueError:
+                                pass
+
+                if target_net:
+                    existing_ip = session.query(IPAddress).filter(IPAddress.address == dev_ip).first()
+                    if existing_ip:
+                        # Link device if not linked
+                        if existing_ip.device_id != device_record.id:
+                            existing_ip.device_id = device_record.id
+                        existing_ip.status = IPStatus.ACTIVE
+                        existing_ip.assignment_type = AssignmentType.STATIC
+                        existing_ip.last_seen = datetime.now(timezone.utc)
+                        if not existing_ip.hostname:
+                            existing_ip.hostname = name
+                    else:
+                        new_ip = IPAddress(
+                            address=dev_ip,
+                            network_id=target_net.id,
+                            device_id=device_record.id,
+                            hostname=name,
+                            mac_address=mac or None,
+                            assignment_type=AssignmentType.STATIC,
+                            status=IPStatus.ACTIVE,
+                            last_seen=datetime.now(timezone.utc),
+                        )
+                        session.add(new_ip)
+
         except Exception as e:
             errors.append(f"Device '{udev.get('name', '?')}': {e}")
 
