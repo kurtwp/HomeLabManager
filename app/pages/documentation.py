@@ -92,20 +92,17 @@ def render_documentation():
             edit_tab = ui.tab("Edit")
             preview_tab = ui.tab("Preview")
 
-        body_input = ui.textarea(placeholder="Write your article in Markdown...").classes(
-            "w-full"
-        ).props('rows="20"')
-        markdown_preview = None
-
         with ui.tab_panels(tabs, value=edit_tab).classes("w-full flex-1"):
             with ui.tab_panel(edit_tab):
-                body_input
+                body_input = ui.textarea(
+                    placeholder="Write your article in Markdown..."
+                ).classes("w-full").props('rows="20"')
+
             with ui.tab_panel(preview_tab):
-                markdown_preview = ui.markdown("").classes("w-full")
+                markdown_preview = ui.markdown("*Start writing...*").classes("w-full")
 
         def update_preview():
-            if markdown_preview:
-                markdown_preview.set_content(body_input.value or "*Start writing...*")
+            markdown_preview.set_content(body_input.value or "*Start writing...*")
 
         tabs.on("update:model-value", lambda: update_preview())
 
@@ -181,6 +178,16 @@ def render_doc_detail(doc_id: int):
             )
             ui.label(doc.title).classes("text-3xl font-bold")
             ui.badge(doc.category.value.replace("-", " ").title()).props("color=blue")
+
+            def delete_doc():
+                session.delete(doc)
+                session.commit()
+                ui.notify("Article deleted", type="warning")
+                ui.navigate.to("/docs")
+
+            ui.button("Delete", icon="delete", on_click=delete_doc).props(
+                "color=red outline size=sm"
+            )
 
         ui.separator().classes("my-4")
 
