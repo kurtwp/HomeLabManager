@@ -1,0 +1,353 @@
+"""UniFi Network API integration service.
+
+Uses the Integration API on the local UDM SE console.
+Base URL: https://<console-ip>/proxy/network/integration/v1
+Auth: X-API-KEY header
+"""
+
+import httpx
+from datetime import datetime, timezone
+
+from sqlalchemy.orm import Session
+
+from config import UNIFI_API_KEY, UNIFI_BASE_URL, UNIFI_SITE_ID
+from app.models.network import Network
+from app.models.ip_address import IPAddress, AssignmentType, IPStatus
+from app.models.device import Device, DeviceType
+from app.models.changelog import EntityType, ActionType
+from app.services.changelog_service import log_change
+
+
+# --- HTTP Client Helpers ---
+
+UNIFI_HEADERS = {
+    "X-API-KEY": UNIFI_API_KEY,
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+}
+
+BASE_INTEGRATION_URL = f"{UNIFI_BASE_URL}/proxy/network/integration/v1"
+
+
+def _get_client() -> httpx.Client:
+    """Create an httpx client for UniFi API calls."""
+    return httpx.Client(
+        base_url=BASE_INTEGRATION_URL,
+        headers=UNIFI_HEADERS,
+        verify=False,  # Self-signed cert on local console
+        timeout=30.0,
+    )
+
+
+def is_configured() -> bool:
+    """Check if UniFi integration is configured."""
+    return bool(UNIFI_API_KEY and UNIFI_BASE_URL and UNIFI_SITE_ID)
+
+
+# --- API Endpoints ---
+
+def fetch_sites() -> list[dict]:
+    """Fetch all sites from the UniFi controller."""
+    with _get_client() as client:
+        r = client.get("/sites")
+        r.raise_for_status()
+        return r.json().get("data", [])
+
+
+def fetch_devices_from_unifi() -> list[dict]:
+    """Fetch all network devices (APs, switches, gateways) from UniFi."""
+    with _get_client() as client:
+        results = []
+        offset = 0
+        limit = 100
+        while True:
+            r = client.get(
+                f"/sites/{UNIFI_SITE_ID}/devices",
+                params={"offset": offset, "limit": limit},
+            )
+            r.raise_for_status()
+            data = r.json().get("data", [])
+            results.extend(data)
+            if len(data) < limit:
+                break
+            offset += limit
+        return results
+
+
+def fetch_clients_from_unifi() -> list[dict]:
+    """Fetch all active clients from UniFi."""
+    with _get_client() as client:
+        results = []
+        offset = 0
+        limit = 100
+        while True:
+            r = client.get(
+                f"/sites/{UNIFI_SITE_ID}/clients",
+                params={"offset": offset, "limit": limit},
+            )
+            r.raise_for_status()
+            data = r.json().get("data", [])
+            results.extend(data)
+            if len(data) < limit:
+                break
+            offset += limit
+        return results
+
+
+def fetch_networks_from_unifi() -> list[dict]:
+    """Fetch all networks/VLANs configured on the UniFi controller."""
+    with _get_client() as client:
+        results = []
+        offset = 0
+        limit = 100
+        while True:
+            r = client.get(
+                f"/sites/{UNIFI_SITE_ID}/networks",
+                params={"offset": offset, "limit": limit},
+            )
+            r.raise_for_status()
+            data = r.json().get("data", [])
+            results.extend(data)
+            if len(data) < limit:
+                break
+            offset += limit
+        return results
+
+
+# --- Sync Operations ---
+
+def sync_networks(session: Session) -> dict:
+    """
+    Pull networks/VLANs from UniFi and create/update local records.
+    Returns summary of actions taken.
+    """
+    unifi_networks = fetch_networks_from_unifi()
+    created = 0
+    updated = 0
+    errors = []
+
+    for unet in unifi_networks:
+        try:
+            name = unet.get("name", "Unnamed Network")
+            # UniFi returns subnet info in various fields
+            subnet = unet.get("subnet")
+            vlan_id = unet.get("vlanId") or unet.get("vlan")
+
+            if not subnet:
+                continue
+
+            # Check if network already exists by CIDR
+            existing = session.query(Network).filter(Network.cidr == subnet).first()
+
+            if existing:
+                # Update name/vlan if changed
+                changed = False
+                if existing.name != name:
+                    existing.name = name
+                    changed = True
+                if vlan_id and existing.vlan_id != vlan_id:
+                    existing.vlan_id = vlan_id
+                    changed = True
+                if changed:
+                    updated += 1
+            else:
+                new_net = Network(
+                    name=name,
+                    cidr=subnet,
+                    vlan_id=vlan_id,
+                    description=f"Imported from UniFi ({unet.get('id', '')})",
+                )
+                session.add(new_net)
+                session.flush()
+                log_change(
+                    session,
+                    entity_type=EntityType.NETWORK,
+                    entity_id=new_net.id,
+                    action=ActionType.CREATED,
+                    entity_name=name,
+                    new_values={"cidr": subnet, "vlan_id": vlan_id, "source": "unifi_sync"},
+                    comment="Imported from UniFi controller",
+                )
+                created += 1
+        except Exception as e:
+            errors.append(f"Network '{unet.get('name', '?')}': {e}")
+
+    session.commit()
+    return {"created": created, "updated": updated, "errors": errors}
+
+
+def sync_devices(session: Session) -> dict:
+    """
+    Pull network devices from UniFi and create/update local device records.
+    """
+    unifi_devices = fetch_devices_from_unifi()
+    created = 0
+    updated = 0
+    errors = []
+
+    # Ensure we have a device type for UniFi devices
+    for type_name in ["Gateway", "Switch", "Access Point"]:
+        existing_type = session.query(DeviceType).filter(DeviceType.name == type_name).first()
+        if not existing_type:
+            session.add(DeviceType(name=type_name))
+    session.flush()
+
+    type_map = {dt.name.lower(): dt.id for dt in session.query(DeviceType).all()}
+
+    for udev in unifi_devices:
+        try:
+            name = udev.get("name") or udev.get("hostname") or udev.get("mac", "Unknown")
+            mac = udev.get("mac", "").upper()
+            model = udev.get("model")
+            dev_type = udev.get("type", "").lower()  # ugw, usw, uap
+
+            # Map UniFi device type to our types
+            if "gw" in dev_type or "gateway" in dev_type:
+                device_type_id = type_map.get("gateway")
+            elif "sw" in dev_type or "switch" in dev_type:
+                device_type_id = type_map.get("switch")
+            elif "ap" in dev_type or "access point" in dev_type:
+                device_type_id = type_map.get("access point")
+            else:
+                device_type_id = type_map.get("other")
+
+            # Find by MAC address
+            existing = session.query(Device).filter(Device.mac_address == mac).first() if mac else None
+
+            if existing:
+                changed = False
+                if existing.name != name:
+                    existing.name = name
+                    changed = True
+                if model and existing.model != model:
+                    existing.model = model
+                    changed = True
+                if changed:
+                    updated += 1
+            else:
+                new_dev = Device(
+                    name=name,
+                    mac_address=mac or None,
+                    manufacturer="Ubiquiti",
+                    model=model,
+                    device_type_id=device_type_id,
+                    notes=f"UniFi device ID: {udev.get('id', '')}",
+                )
+                session.add(new_dev)
+                session.flush()
+                log_change(
+                    session,
+                    entity_type=EntityType.DEVICE,
+                    entity_id=new_dev.id,
+                    action=ActionType.CREATED,
+                    entity_name=name,
+                    new_values={"mac": mac, "model": model, "source": "unifi_sync"},
+                    comment="Imported from UniFi controller",
+                )
+                created += 1
+        except Exception as e:
+            errors.append(f"Device '{udev.get('name', '?')}': {e}")
+
+    session.commit()
+    return {"created": created, "updated": updated, "errors": errors}
+
+
+def sync_clients(session: Session) -> dict:
+    """
+    Pull active clients from UniFi and create/update IP address records.
+    """
+    unifi_clients = fetch_clients_from_unifi()
+    created = 0
+    updated = 0
+    skipped = 0
+    errors = []
+
+    for client in unifi_clients:
+        try:
+            ip_addr = client.get("ip") or client.get("fixedIp")
+            if not ip_addr:
+                skipped += 1
+                continue
+
+            mac = (client.get("mac") or "").upper()
+            hostname = client.get("name") or client.get("hostname")
+            is_fixed = client.get("useFixedIp", False)
+
+            # Find which network this IP belongs to
+            import ipaddress
+            networks = session.query(Network).all()
+            target_network = None
+            for net in networks:
+                try:
+                    if ipaddress.ip_address(ip_addr) in ipaddress.ip_network(net.cidr, strict=False):
+                        target_network = net
+                        break
+                except ValueError:
+                    continue
+
+            if not target_network:
+                skipped += 1
+                continue
+
+            # Check if IP already exists
+            existing = session.query(IPAddress).filter(IPAddress.address == ip_addr).first()
+
+            if existing:
+                changed = False
+                if hostname and existing.hostname != hostname:
+                    existing.hostname = hostname
+                    changed = True
+                if mac and existing.mac_address != mac:
+                    existing.mac_address = mac
+                    changed = True
+                existing.last_seen = datetime.now(timezone.utc)
+                existing.status = IPStatus.ACTIVE
+                if changed:
+                    updated += 1
+            else:
+                new_ip = IPAddress(
+                    address=ip_addr,
+                    network_id=target_network.id,
+                    hostname=hostname,
+                    mac_address=mac or None,
+                    assignment_type=AssignmentType.STATIC if is_fixed else AssignmentType.DHCP,
+                    status=IPStatus.ACTIVE,
+                    last_seen=datetime.now(timezone.utc),
+                )
+                session.add(new_ip)
+                session.flush()
+                log_change(
+                    session,
+                    entity_type=EntityType.IP_ADDRESS,
+                    entity_id=new_ip.id,
+                    action=ActionType.CREATED,
+                    entity_name=ip_addr,
+                    new_values={"address": ip_addr, "hostname": hostname, "source": "unifi_sync"},
+                    comment="Imported from UniFi client list",
+                )
+                created += 1
+        except Exception as e:
+            errors.append(f"Client '{client.get('name', client.get('mac', '?'))}': {e}")
+
+    session.commit()
+    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
+
+
+def test_connection() -> dict:
+    """Test the UniFi API connection. Returns status info."""
+    if not is_configured():
+        return {"success": False, "error": "UniFi integration not configured. Set UNIFI_API_KEY, UNIFI_BASE_URL, and UNIFI_SITE_ID in .env"}
+
+    try:
+        sites = fetch_sites()
+        return {
+            "success": True,
+            "sites": len(sites),
+            "site_names": [s.get("name", "?") for s in sites],
+        }
+    except httpx.ConnectError:
+        return {"success": False, "error": f"Cannot connect to {UNIFI_BASE_URL}"}
+    except httpx.HTTPStatusError as e:
+        return {"success": False, "error": f"HTTP {e.response.status_code}: Check API key"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

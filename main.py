@@ -14,12 +14,18 @@ from app.pages.history import render_history
 from app.pages.search import render_search
 from app.pages.tags import render_tags
 from app.pages.import_export import render_import_export
+from app.pages.unifi import render_unifi
+from app.pages.scheduler_page import render_scheduler
+from app.services.scheduler import start_scheduler, stop_scheduler
 
 
 # Initialize database and seed defaults
 init_db()
 with get_session() as session:
     seed_defaults(session)
+
+# Start background scheduler for automatic scans
+start_scheduler()
 
 
 # --- Page routes ---
@@ -204,6 +210,16 @@ def tags_page():
 @ui.page("/import-export")
 def import_export_page():
     render_import_export()
+
+
+@ui.page("/unifi")
+def unifi_page():
+    render_unifi()
+
+
+@ui.page("/scheduler")
+def scheduler_page():
+    render_scheduler()
 
 
 @ui.page("/search")

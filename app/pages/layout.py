@@ -28,6 +28,8 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("IPs", "/ips").classes("nav-link")
             ui.link("Docs", "/docs").classes("nav-link")
             ui.link("Tags", "/tags").classes("nav-link")
+            ui.link("UniFi", "/unifi").classes("nav-link")
+            ui.link("Scheduler", "/scheduler").classes("nav-link")
             ui.link("Import/Export", "/import-export").classes("nav-link")
             ui.link("History", "/history").classes("nav-link")
 
