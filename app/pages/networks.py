@@ -27,9 +27,13 @@ def render_networks():
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label("Networks & VLANs").classes("text-3xl font-bold")
-            ui.button("Add Network", on_click=lambda: add_dialog.open()).props(
-                "color=primary icon=add"
-            )
+            with ui.row().classes("gap-2"):
+                ui.button("Add Network", on_click=lambda: add_dialog.open()).props(
+                    "color=primary icon=add"
+                )
+                ui.button("Delete All", on_click=lambda: confirm_delete_all_networks()).props(
+                    "color=red icon=delete_sweep outline"
+                )
 
         ui.separator().classes("my-4")
 
@@ -139,6 +143,31 @@ def render_networks():
                         ),
                     ).props("color=red")
             confirm.open()
+
+        def confirm_delete_all_networks():
+            with ui.dialog() as dlg, ui.card():
+                total = session.query(Network).count()
+                ui.label(f"Delete ALL {total} networks?").classes("text-lg font-semibold")
+                ui.label(
+                    "This will delete all networks and their associated IP addresses. "
+                    "This cannot be undone."
+                ).classes("text-sm text-red")
+                with ui.row().classes("justify-end gap-2 mt-3"):
+                    ui.button("Cancel", on_click=dlg.close).props("flat")
+                    ui.button("Delete All", on_click=lambda: (
+                        _delete_all_networks(),
+                        dlg.close(),
+                    )).props("color=red")
+            dlg.open()
+
+        def _delete_all_networks():
+            from app.models.ip_address import IPAddress
+            count = session.query(Network).count()
+            session.query(IPAddress).delete()
+            session.query(Network).delete()
+            session.commit()
+            refresh_networks()
+            ui.notify(f"Deleted {count} networks and all IPs", type="warning")
 
         refresh_networks()
 

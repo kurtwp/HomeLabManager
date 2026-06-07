@@ -6,7 +6,7 @@ from app.database.db import get_session_direct as get_session
 from app.models.ip_address import IPAddress, AssignmentType, IPStatus
 from app.models.network import Network
 from app.models.tag import Tag, ip_tags
-from app.services.ip_service import create_ip, get_ips_for_network, get_ip_by_id, update_ip
+from app.services.ip_service import create_ip, get_ips_for_network, get_ip_by_id, update_ip, delete_ip
 from app.services.network_service import get_all_networks
 from app.utils.formatters import format_timestamp
 from app.pages.layout import page_layout
@@ -21,9 +21,13 @@ def render_ips():
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label("IP Addresses").classes("text-3xl font-bold")
-            ui.button("Add IP", on_click=lambda: add_dialog.open()).props(
-                "color=primary icon=add"
-            )
+            with ui.row().classes("gap-2"):
+                ui.button("Add IP", on_click=lambda: add_dialog.open()).props(
+                    "color=primary icon=add"
+                )
+                ui.button("Delete All", on_click=lambda: confirm_delete_all()).props(
+                    "color=red icon=delete_sweep outline"
+                )
 
         ui.separator().classes("my-4")
 
@@ -50,8 +54,8 @@ def render_ips():
             ).classes("w-44")
             ui.button("Filter", on_click=lambda: refresh_ips()).props("flat")
 
-        # IP table
-        ip_container = ui.column().classes("w-full mt-4")
+        # IP list
+        ip_container = ui.column().classes("w-full mt-4 gap-1")
 
         def refresh_ips():
             ip_container.clear()
@@ -73,14 +77,14 @@ def render_ips():
                     ui.label("No IP addresses found.").classes("text-gray-500")
                     return
 
-                # Render as cards for richer display with tags
+                ui.label(f"{len(ips)} IPs").classes("text-sm text-gray-400 mb-1")
+
                 for ip in ips:
-                    with ui.card().classes("w-full cursor-pointer").on(
-                        "click", lambda i=ip: ui.navigate.to(f"/ips/{i.id}")
-                    ):
+                    with ui.card().classes("w-full"):
                         with ui.row().classes("w-full items-center justify-between"):
-                            with ui.row().classes("items-center gap-3"):
-                                # Status indicator
+                            with ui.row().classes("items-center gap-3 cursor-pointer flex-1").on(
+                                "click", lambda i=ip: ui.navigate.to(f"/ips/{i.id}")
+                            ):
                                 status_icon = "🟢" if ip.status == IPStatus.ACTIVE else "🔴" if ip.status == IPStatus.INACTIVE else "⚪"
                                 ui.label(status_icon)
                                 ui.label(ip.address).classes("font-mono font-semibold")
@@ -88,7 +92,6 @@ def render_ips():
                                 ui.badge(ip.assignment_type.value.upper()).props(
                                     f'color={"blue" if ip.assignment_type == AssignmentType.STATIC else "orange"} outline'
                                 ).classes("text-xs")
-                                # Tag chips
                                 for tag in ip.tags:
                                     ui.html(
                                         f'<span style="font-size:0.65rem; padding:1px 8px; '
@@ -97,13 +100,54 @@ def render_ips():
                                         f'font-weight:500;">{tag.name}</span>'
                                     )
 
-                            with ui.row().classes("items-center gap-4"):
+                            with ui.row().classes("items-center gap-2"):
                                 ui.label(ip.network.name if ip.network else "").classes(
                                     "text-sm text-gray-400"
                                 )
                                 ui.label(format_timestamp(ip.last_seen)).classes(
                                     "text-xs text-gray-400"
                                 )
+                                ui.button(
+                                    icon="delete",
+                                    on_click=lambda i=ip: confirm_delete_ip(i),
+                                ).props("flat round size=sm color=red")
+
+        def confirm_delete_ip(ip):
+            with ui.dialog() as dlg, ui.card():
+                ui.label(f"Delete IP {ip.address}?").classes("text-lg font-semibold")
+                if ip.hostname:
+                    ui.label(f"Hostname: {ip.hostname}").classes("text-sm text-gray-500")
+                with ui.row().classes("justify-end gap-2 mt-3"):
+                    ui.button("Cancel", on_click=dlg.close).props("flat")
+                    ui.button("Delete", on_click=lambda: (
+                        delete_ip(session, ip.id),
+                        dlg.close(),
+                        refresh_ips(),
+                        ui.notify(f"Deleted {ip.address}", type="warning"),
+                    )).props("color=red")
+            dlg.open()
+
+        def confirm_delete_all():
+            with ui.dialog() as dlg, ui.card():
+                total = session.query(IPAddress).count()
+                ui.label(f"Delete ALL {total} IP addresses?").classes("text-lg font-semibold")
+                ui.label("This cannot be undone. Changelog history will be preserved.").classes(
+                    "text-sm text-red"
+                )
+                with ui.row().classes("justify-end gap-2 mt-3"):
+                    ui.button("Cancel", on_click=dlg.close).props("flat")
+                    ui.button("Delete All", on_click=lambda: (
+                        _delete_all_ips(),
+                        dlg.close(),
+                    )).props("color=red")
+            dlg.open()
+
+        def _delete_all_ips():
+            count = session.query(IPAddress).count()
+            session.query(IPAddress).delete()
+            session.commit()
+            refresh_ips()
+            ui.notify(f"Deleted {count} IP addresses", type="warning")
 
         refresh_ips()
 
@@ -175,6 +219,15 @@ def render_ip_detail(ip_id: int):
             status_color = "green" if ip.status == IPStatus.ACTIVE else "red"
             ui.badge(ip.status.value.upper()).props(f"color={status_color}")
             ui.badge(ip.assignment_type.value.upper()).props("color=blue outline")
+
+            def do_delete():
+                delete_ip(session, ip.id)
+                ui.notify(f"Deleted {ip.address}", type="warning")
+                ui.navigate.to("/ips")
+
+            ui.button("Delete", icon="delete", on_click=do_delete).props(
+                "color=red outline size=sm"
+            )
 
         ui.separator().classes("my-4")
 

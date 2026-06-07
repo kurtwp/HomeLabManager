@@ -185,4 +185,39 @@ def render_unifi():
             "Sync Everything", icon="sync", on_click=sync_all
         ).props("color=primary size=lg")
 
+        # Debug section — raw API data inspection
+        ui.separator().classes("my-4")
+        with ui.expansion("Debug: Raw API Data", icon="bug_report").classes("w-full"):
+            debug_output = ui.column().classes("w-full")
+
+            def show_raw_networks():
+                from app.services.unifi_service import fetch_raw_networks
+                debug_output.clear()
+                with debug_output:
+                    try:
+                        raw = fetch_raw_networks()
+                        ui.label(f"Got {len(raw)} networks from UniFi").classes("font-semibold")
+                        for i, net in enumerate(raw[:5]):
+                            ui.label(f"Network {i+1}: {net.get('name', '?')}").classes("font-semibold mt-2")
+                            ui.code(str(net), language="json").classes("w-full text-xs")
+                    except Exception as e:
+                        ui.label(f"Error: {e}").classes("text-red")
+
+            def show_raw_clients():
+                from app.services.unifi_service import fetch_raw_clients
+                debug_output.clear()
+                with debug_output:
+                    try:
+                        raw = fetch_raw_clients()
+                        ui.label(f"Got {len(raw)} clients from UniFi").classes("font-semibold")
+                        for i, client in enumerate(raw[:5]):
+                            ui.label(f"Client {i+1}: {client.get('name', client.get('hostname', client.get('mac', '?')))}").classes("font-semibold mt-2")
+                            ui.code(str(client), language="json").classes("w-full text-xs")
+                    except Exception as e:
+                        ui.label(f"Error: {e}").classes("text-red")
+
+            with ui.row().classes("gap-2"):
+                ui.button("Show Raw Networks", on_click=show_raw_networks).props("flat size=sm")
+                ui.button("Show Raw Clients", on_click=show_raw_clients).props("flat size=sm")
+
     session.close()

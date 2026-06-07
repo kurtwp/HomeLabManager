@@ -111,7 +111,24 @@ def fetch_networks_from_unifi() -> list[dict]:
             if len(data) < limit:
                 break
             offset += limit
-        return results
+
+        # For each network, try to fetch full details which may include subnet
+        detailed_results = []
+        for net in results:
+            net_id = net.get("id")
+            if net_id:
+                try:
+                    detail_r = client.get(f"/sites/{UNIFI_SITE_ID}/networks/{net_id}")
+                    if detail_r.status_code == 200:
+                        detailed_results.append(detail_r.json())
+                    else:
+                        detailed_results.append(net)
+                except Exception:
+                    detailed_results.append(net)
+            else:
+                detailed_results.append(net)
+
+        return detailed_results
 
 
 # --- Sync Operations ---
@@ -124,17 +141,101 @@ def sync_networks(session: Session) -> dict:
     unifi_networks = fetch_networks_from_unifi()
     created = 0
     updated = 0
+    skipped = 0
     errors = []
 
     for unet in unifi_networks:
         try:
             name = unet.get("name", "Unnamed Network")
-            # UniFi returns subnet info in various fields
-            subnet = unet.get("subnet")
-            vlan_id = unet.get("vlanId") or unet.get("vlan")
+            # UniFi Integration API may use different field names depending on version
+            # Try multiple possible fields for subnet/CIDR
+            subnet = (
+                unet.get("subnet")
+                or unet.get("ipSubnet")
+                or unet.get("ip_subnet")
+            )
+
+            # Check ipv4Configuration object (UniFi Integration API v1)
+            if not subnet and unet.get("ipv4Configuration"):
+                ipv4_config = unet["ipv4Configuration"]
+                if isinstance(ipv4_config, dict):
+                    subnet = (
+                        ipv4_config.get("subnet")
+                        or ipv4_config.get("cidr")
+                        or ipv4_config.get("ipSubnet")
+                    )
+                    # hostIpAddress + prefixLength (actual UniFi format)
+                    if not subnet and ipv4_config.get("hostIpAddress") and ipv4_config.get("prefixLength"):
+                        import ipaddress
+                        try:
+                            net = ipaddress.ip_network(
+                                f"{ipv4_config['hostIpAddress']}/{ipv4_config['prefixLength']}",
+                                strict=False
+                            )
+                            subnet = str(net)
+                        except ValueError:
+                            pass
+                    # Try gateway + prefix
+                    if not subnet and ipv4_config.get("gateway") and ipv4_config.get("prefixLength"):
+                        import ipaddress
+                        try:
+                            net = ipaddress.ip_network(
+                                f"{ipv4_config['gateway']}/{ipv4_config['prefixLength']}",
+                                strict=False
+                            )
+                            subnet = str(net)
+                        except ValueError:
+                            pass
+
+            # Some responses include separate ip + netmask
+            if not subnet and unet.get("ip") and unet.get("netmask"):
+                import ipaddress
+                try:
+                    net = ipaddress.ip_network(f"{unet['ip']}/{unet['netmask']}", strict=False)
+                    subnet = str(net)
+                except ValueError:
+                    pass
+
+            # Check inside metadata object
+            if not subnet and unet.get("metadata"):
+                meta = unet["metadata"]
+                if isinstance(meta, dict):
+                    subnet = (
+                        meta.get("subnet")
+                        or meta.get("ipSubnet")
+                        or meta.get("ip_subnet")
+                        or meta.get("cidr")
+                    )
+
+            # Try gatewayIp at top level as last resort
+            if not subnet and unet.get("gatewayIp"):
+                import ipaddress
+                try:
+                    net = ipaddress.ip_network(f"{unet['gatewayIp']}/24", strict=False)
+                    subnet = str(net)
+                except ValueError:
+                    pass
+
+            vlan_id = unet.get("vlanId") or unet.get("vlan") or unet.get("vlan_id")
+
+            # Extract gateway from ipv4Configuration
+            gateway = None
+            if unet.get("ipv4Configuration") and isinstance(unet["ipv4Configuration"], dict):
+                gateway = unet["ipv4Configuration"].get("hostIpAddress")
 
             if not subnet:
+                skipped += 1
+                ipv4_info = str(unet.get("ipv4Configuration", ""))[:200]
+                meta_info = str(unet.get("metadata", ""))[:100]
+                errors.append(
+                    f"Network '{name}': no subnet found "
+                    f"(ipv4Config: {ipv4_info}, metadata: {meta_info})"
+                )
                 continue
+
+            # Normalize CIDR (ensure it has a prefix length)
+            if "/" not in subnet:
+                subnet = f"{subnet}/24"
 
             # Check if network already exists by CIDR
             existing = session.query(Network).filter(Network.cidr == subnet).first()
@@ -155,6 +256,7 @@ def sync_networks(session: Session) -> dict:
                     name=name,
                     cidr=subnet,
                     vlan_id=vlan_id,
+                    gateway=gateway,
                     description=f"Imported from UniFi ({unet.get('id', '')})",
                 )
                 session.add(new_net)
@@ -173,7 +275,7 @@ def sync_networks(session: Session) -> dict:
             errors.append(f"Network '{unet.get('name', '?')}': {e}")
 
     session.commit()
-    return {"created": created, "updated": updated, "errors": errors}
+    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
 
 
 def sync_devices(session: Session) -> dict:
@@ -351,3 +453,13 @@ def test_connection() -> dict:
         return {"success": False, "error": f"HTTP {e.response.status_code}: Check API key"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def fetch_raw_networks() -> list[dict]:
+    """Fetch raw network data from UniFi for debugging field names."""
+    return fetch_networks_from_unifi()
+
+
+def fetch_raw_clients() -> list[dict]:
+    """Fetch raw client data from UniFi for debugging field names."""
+    return fetch_clients_from_unifi()

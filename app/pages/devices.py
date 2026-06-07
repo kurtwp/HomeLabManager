@@ -25,9 +25,13 @@ def render_devices():
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label("Devices").classes("text-3xl font-bold")
-            ui.button("Add Device", on_click=lambda: add_dialog.open()).props(
-                "color=primary icon=add"
-            )
+            with ui.row().classes("gap-2"):
+                ui.button("Add Device", on_click=lambda: add_dialog.open()).props(
+                    "color=primary icon=add"
+                )
+                ui.button("Delete All", on_click=lambda: confirm_delete_all_devices()).props(
+                    "color=red icon=delete_sweep outline"
+                )
 
         ui.separator().classes("my-4")
 
@@ -106,6 +110,43 @@ def render_devices():
                                 ui.badge(f"{len(d.ip_addresses)} IPs").props(
                                     "color=blue outline"
                                 ).classes("text-xs")
+                                ui.button(
+                                    icon="delete",
+                                    on_click=lambda dev=d: confirm_delete_device(dev),
+                                ).props("flat round size=sm color=red")
+
+        def confirm_delete_device(dev):
+            with ui.dialog() as dlg, ui.card():
+                ui.label(f"Delete device '{dev.name}'?").classes("text-lg font-semibold")
+                with ui.row().classes("justify-end gap-2 mt-3"):
+                    ui.button("Cancel", on_click=dlg.close).props("flat")
+                    ui.button("Delete", on_click=lambda: (
+                        delete_device(session, dev.id),
+                        dlg.close(),
+                        refresh_devices(),
+                        ui.notify(f"Deleted {dev.name}", type="warning"),
+                    )).props("color=red")
+            dlg.open()
+
+        def confirm_delete_all_devices():
+            with ui.dialog() as dlg, ui.card():
+                total = session.query(Device).count()
+                ui.label(f"Delete ALL {total} devices?").classes("text-lg font-semibold")
+                ui.label("This cannot be undone.").classes("text-sm text-red")
+                with ui.row().classes("justify-end gap-2 mt-3"):
+                    ui.button("Cancel", on_click=dlg.close).props("flat")
+                    ui.button("Delete All", on_click=lambda: (
+                        _delete_all_devices(),
+                        dlg.close(),
+                    )).props("color=red")
+            dlg.open()
+
+        def _delete_all_devices():
+            count = session.query(Device).count()
+            session.query(Device).delete()
+            session.commit()
+            refresh_devices()
+            ui.notify(f"Deleted {count} devices", type="warning")
 
         refresh_devices()
 
