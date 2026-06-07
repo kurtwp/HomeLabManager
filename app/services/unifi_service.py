@@ -388,6 +388,37 @@ def sync_clients(session: Session) -> dict:
         except ValueError:
             pass
 
+    # Fetch DHCP ranges from UniFi to determine static vs DHCP
+    dhcp_ranges: list[tuple[ipaddress_mod.IPv4Address, ipaddress_mod.IPv4Address]] = []
+    try:
+        unifi_networks = fetch_networks_from_unifi()
+        for unet in unifi_networks:
+            ipv4_config = unet.get("ipv4Configuration")
+            if isinstance(ipv4_config, dict):
+                dhcp_config = ipv4_config.get("dhcpConfiguration")
+                if isinstance(dhcp_config, dict):
+                    ip_range = dhcp_config.get("ipAddressRange")
+                    if isinstance(ip_range, dict) and ip_range.get("start") and ip_range.get("stop"):
+                        try:
+                            start = ipaddress_mod.ip_address(ip_range["start"])
+                            stop = ipaddress_mod.ip_address(ip_range["stop"])
+                            dhcp_ranges.append((start, stop))
+                        except ValueError:
+                            pass
+    except Exception:
+        pass  # If we can't get DHCP ranges, default to DHCP
+
+    def is_in_dhcp_range(ip_str: str) -> bool:
+        """Check if an IP falls within any known DHCP range."""
+        try:
+            ip_obj = ipaddress_mod.ip_address(ip_str)
+            for start, stop in dhcp_ranges:
+                if start <= ip_obj <= stop:
+                    return True
+        except ValueError:
+            pass
+        return False
+
     skipped_ips = []
 
     for client in unifi_clients:
@@ -405,6 +436,12 @@ def sync_clients(session: Session) -> dict:
             mac = (client.get("mac") or client.get("macAddress") or "").upper().replace("-", ":")
             hostname = client.get("name") or client.get("hostname")
             is_fixed = client.get("useFixedIp", False) or client.get("use_fixed_ip", False)
+
+            # Determine assignment type: if IP is outside DHCP range, it's static
+            if is_fixed or (dhcp_ranges and not is_in_dhcp_range(ip_addr)):
+                assignment = AssignmentType.STATIC
+            else:
+                assignment = AssignmentType.DHCP
 
             # Find which network this IP belongs to
             target_network = None
@@ -435,6 +472,9 @@ def sync_clients(session: Session) -> dict:
                 if mac and existing.mac_address != mac:
                     existing.mac_address = mac
                     changed = True
+                if existing.assignment_type != assignment:
+                    existing.assignment_type = assignment
+                    changed = True
                 existing.last_seen = datetime.now(timezone.utc)
                 existing.status = IPStatus.ACTIVE
                 if changed:
@@ -445,7 +485,7 @@ def sync_clients(session: Session) -> dict:
                     network_id=target_network.id,
                     hostname=hostname,
                     mac_address=mac or None,
-                    assignment_type=AssignmentType.STATIC if is_fixed else AssignmentType.DHCP,
+                    assignment_type=assignment,
                     status=IPStatus.ACTIVE,
                     last_seen=datetime.now(timezone.utc),
                 )
