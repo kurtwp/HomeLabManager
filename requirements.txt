@@ -10,3 +10,4 @@ python-dotenv==1.0.1
 tenacity==9.0.0
 ping3==4.0.8
 aiosqlite==0.20.0
+# SNMP uses system snmpget/snmpwalk commands (net-snmp-utils package)

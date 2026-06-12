@@ -41,6 +41,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Reports", lambda: ui.navigate.to("/reports"))
                     ui.menu_item("Locations", lambda: ui.navigate.to("/locations"))
                     ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
+                    ui.menu_item("SNMP Discovery", lambda: ui.navigate.to("/snmp"))
 
         with ui.row().classes("items-center gap-2"):
             search_input = ui.input(placeholder="Search...").props(

@@ -20,6 +20,7 @@ from app.pages.calculator import render_calculator
 from app.pages.reports import render_reports
 from app.pages.locations import render_locations
 from app.pages.custom_fields import render_custom_fields
+from app.pages.snmp_page import render_snmp
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -249,6 +250,11 @@ def locations_page():
 @ui.page("/custom-fields")
 def custom_fields_page():
     render_custom_fields()
+
+
+@ui.page("/snmp")
+def snmp_page():
+    render_snmp()
 
 
 # --- Serve static CSS ---
