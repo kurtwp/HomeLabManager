@@ -23,6 +23,7 @@ from app.pages.custom_fields import render_custom_fields
 from app.pages.snmp_page import render_snmp
 from app.pages.nmap_page import render_nmap
 from app.pages.ping_scan import render_ping_scan
+from app.pages.site_manager import render_site_manager
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -267,6 +268,11 @@ def nmap_page():
 @ui.page("/ping-scan")
 def ping_scan_page():
     render_ping_scan()
+
+
+@ui.page("/site-manager")
+def site_manager_page():
+    render_site_manager()
 
 
 # --- Serve static CSS ---
