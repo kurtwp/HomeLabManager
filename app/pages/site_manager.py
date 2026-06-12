@@ -205,16 +205,18 @@ def render_site_manager():
                             {"name": "ip", "label": "IP", "field": "ip", "align": "left"},
                             {"name": "state", "label": "State", "field": "state", "align": "center"},
                             {"name": "firmware", "label": "Firmware", "field": "firmware", "align": "left"},
+                            {"name": "host", "label": "Host", "field": "host", "align": "left"},
                         ]
                         rows = []
                         for dev in devices:
                             rows.append({
-                                "name": dev.get("name") or dev.get("hostname") or "—",
+                                "name": dev.get("name") or "—",
                                 "model": dev.get("model") or dev.get("shortname") or "—",
-                                "mac": dev.get("mac") or dev.get("macAddress") or "—",
-                                "ip": dev.get("ip") or dev.get("ipAddress") or "—",
-                                "state": dev.get("state") or dev.get("status") or "—",
-                                "firmware": dev.get("firmwareVersion") or dev.get("version") or "—",
+                                "mac": dev.get("mac") or "—",
+                                "ip": dev.get("ip") or "—",
+                                "state": dev.get("status") or dev.get("state") or "—",
+                                "firmware": dev.get("version") or "—",
+                                "host": dev.get("_hostName") or "—",
                             })
 
                         ui.table(columns=columns, rows=rows, row_key="mac").classes(

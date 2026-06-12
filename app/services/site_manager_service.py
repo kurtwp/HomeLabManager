@@ -85,18 +85,28 @@ def fetch_sites() -> list[dict]:
 
 
 def fetch_devices() -> list[dict]:
-    """Fetch all devices across all sites."""
+    """Fetch all devices across all sites (flattened from host groupings)."""
     with _get_client() as client:
-        results = []
-        # Paginate if needed
         r = client.get("/devices")
         r.raise_for_status()
         data = r.json()
-        if isinstance(data, list):
-            results = data
-        else:
-            results = data.get("data", [])
-        return results
+        raw_list = data if isinstance(data, list) else data.get("data", [])
+
+        # The API returns [{hostId, hostName, devices: [...]}, ...]
+        # Flatten into a single device list with hostName attached
+        all_devices = []
+        for entry in raw_list:
+            host_name = entry.get("hostName") or entry.get("hostId", "Unknown")
+            devices = entry.get("devices", [])
+            if isinstance(devices, list):
+                for dev in devices:
+                    dev["_hostName"] = host_name
+                    all_devices.append(dev)
+            else:
+                # If the entry itself looks like a device, include it
+                all_devices.append(entry)
+
+        return all_devices
 
 
 def fetch_isp_metrics() -> dict:
