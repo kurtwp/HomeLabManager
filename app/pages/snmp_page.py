@@ -29,13 +29,87 @@ def render_snmp():
         # SNMP Settings
         with ui.card().classes("w-full mt-4"):
             ui.label("SNMP Settings").classes("text-lg font-semibold mb-2")
-            with ui.row().classes("gap-4 items-end"):
+
+            with ui.row().classes("gap-4 items-end flex-wrap"):
+                version_select = ui.select(
+                    {"1": "SNMPv1", "2c": "SNMPv2c", "3": "SNMPv3"},
+                    value="2c",
+                    label="SNMP Version",
+                ).classes("w-36")
                 community_input = ui.input(
                     "Community String", value="public", placeholder="public"
                 ).classes("w-48")
                 timeout_input = ui.number(
                     "Timeout (seconds)", value=2, min=1, max=10
                 ).classes("w-36")
+
+            # SNMPv3 credentials (shown only when v3 is selected)
+            v3_container = ui.column().classes("w-full mt-3 gap-2")
+
+            def toggle_v3_fields():
+                v3_container.clear()
+                if version_select.value == "3":
+                    with v3_container:
+                        ui.label("SNMPv3 Credentials").classes("text-sm font-semibold text-gray-400")
+                        with ui.row().classes("gap-4 items-end flex-wrap"):
+                            v3_user_input.set_visibility(True)
+                            v3_auth_proto_select.set_visibility(True)
+                            v3_auth_pass_input.set_visibility(True)
+                            v3_priv_proto_select.set_visibility(True)
+                            v3_priv_pass_input.set_visibility(True)
+                            v3_sec_level_select.set_visibility(True)
+
+            v3_user_input = ui.input("Username", placeholder="snmpuser").classes("w-44")
+            v3_sec_level_select = ui.select(
+                {"noAuthNoPriv": "No Auth/No Priv", "authNoPriv": "Auth/No Priv", "authPriv": "Auth + Priv"},
+                value="authPriv",
+                label="Security Level",
+            ).classes("w-48")
+            v3_auth_proto_select = ui.select(
+                {"MD5": "MD5", "SHA": "SHA"},
+                value="SHA",
+                label="Auth Protocol",
+            ).classes("w-36")
+            v3_auth_pass_input = ui.input(
+                "Auth Password", password=True, placeholder="auth passphrase"
+            ).classes("w-48")
+            v3_priv_proto_select = ui.select(
+                {"DES": "DES", "AES": "AES"},
+                value="AES",
+                label="Privacy Protocol",
+            ).classes("w-36")
+            v3_priv_pass_input = ui.input(
+                "Privacy Password", password=True, placeholder="priv passphrase"
+            ).classes("w-48")
+
+            # Initially hide v3 fields
+            def update_v3_visibility():
+                is_v3 = version_select.value == "3"
+                v3_user_input.set_visibility(is_v3)
+                v3_sec_level_select.set_visibility(is_v3)
+                v3_auth_proto_select.set_visibility(is_v3)
+                v3_auth_pass_input.set_visibility(is_v3)
+                v3_priv_proto_select.set_visibility(is_v3)
+                v3_priv_pass_input.set_visibility(is_v3)
+                # Show/hide community for v1/v2c
+                community_input.set_visibility(not is_v3)
+
+            version_select.on("update:model-value", lambda: update_v3_visibility())
+            update_v3_visibility()
+
+            def get_snmp_args() -> dict:
+                """Build SNMP arguments dict from the UI settings."""
+                return {
+                    "version": version_select.value,
+                    "community": community_input.value or "public",
+                    "timeout": int(timeout_input.value or 2),
+                    "v3_user": v3_user_input.value or "",
+                    "v3_sec_level": v3_sec_level_select.value,
+                    "v3_auth_proto": v3_auth_proto_select.value,
+                    "v3_auth_pass": v3_auth_pass_input.value or "",
+                    "v3_priv_proto": v3_priv_proto_select.value,
+                    "v3_priv_pass": v3_priv_pass_input.value or "",
+                }
 
         ui.separator().classes("my-4")
 
@@ -64,11 +138,8 @@ def render_snmp():
                         with single_result:
                             ui.spinner(size="lg")
 
-                        info = get_device_info(
-                            ip_input.value,
-                            community_input.value or "public",
-                            int(timeout_input.value or 2),
-                        )
+                        args = get_snmp_args()
+                        info = get_device_info(ip_input.value, **args)
 
                         single_result.clear()
                         with single_result:
@@ -120,11 +191,8 @@ def render_snmp():
                                     f"This may take up to {len(ip_list) * int(timeout_input.value or 2) // 20 + 1} seconds."
                                 ).classes("text-sm text-gray-500")
 
-                        results = scan_network_snmp(
-                            ip_list,
-                            community_input.value or "public",
-                            int(timeout_input.value or 2),
-                        )
+                        args = get_snmp_args()
+                        results = scan_network_snmp(ip_list, **args)
 
                         network_results.clear()
                         with network_results:
@@ -184,12 +252,9 @@ def render_snmp():
                                 ).classes("text-sm text-gray-500")
 
                         results = []
+                        args = get_snmp_args()
                         for device, ip in device_ips:
-                            info = get_device_info(
-                                ip,
-                                community_input.value or "public",
-                                int(timeout_input.value or 2),
-                            )
+                            info = get_device_info(ip, **args)
                             results.append((device, info))
 
                         known_results.clear()
