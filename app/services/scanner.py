@@ -46,41 +46,47 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
     start_time = time.time()
     discovered_hosts: set[str] = set()
 
-    net = ipaddress.ip_network(network.cidr, strict=False)
-    all_host_ips = list(net.hosts())
-
-    # Use subprocess ping — works without root, unlike nmap -sn
-    # Scan in parallel using concurrent futures for speed
     import subprocess
-    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    def ping_host(host_str: str) -> str | None:
-        """Ping a single host using system ping command."""
-        try:
-            result = subprocess.run(
-                ["ping", "-c", "1", "-W", "1", host_str],
-                capture_output=True,
-                timeout=3,
-            )
-            if result.returncode == 0:
-                return host_str
-        except (subprocess.TimeoutExpired, OSError):
-            pass
-        return None
+    # Use nmap -sn on the full CIDR — works on local subnets using ARP discovery
+    try:
+        result = subprocess.run(
+            ["nmap", "-sn", network.cidr],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            # Parse nmap output for "Nmap scan report for <ip>"
+            import re
+            for line in result.stdout.split("\n"):
+                # Matches "Nmap scan report for 192.168.2.5" or "Nmap scan report for hostname (192.168.2.5)"
+                match = re.search(r"Nmap scan report for (?:.*?\()?(\d+\.\d+\.\d+\.\d+)\)?", line)
+                if match:
+                    discovered_hosts.add(match.group(1))
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+        # Fallback to parallel ping if nmap is not available
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Limit to /24 or smaller for performance (max 254 hosts)
-    if len(all_host_ips) > 254:
-        all_host_ips = all_host_ips[:254]
+        net = ipaddress.ip_network(network.cidr, strict=False)
+        all_host_ips = [str(ip) for ip in list(net.hosts())[:254]]
 
-    # Parallel ping with up to 50 threads
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        futures = {
-            executor.submit(ping_host, str(ip)): str(ip) for ip in all_host_ips
-        }
-        for future in as_completed(futures):
-            result = future.result()
-            if result:
-                discovered_hosts.add(result)
+        def ping_host(host_str: str) -> str | None:
+            try:
+                res = subprocess.run(
+                    ["ping", "-c", "1", "-W", "1", host_str],
+                    capture_output=True, timeout=3,
+                )
+                if res.returncode == 0:
+                    return host_str
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+            return None
+
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = {executor.submit(ping_host, ip): ip for ip in all_host_ips}
+            for future in as_completed(futures):
+                r = future.result()
+                if r:
+                    discovered_hosts.add(r)
 
     # Get existing IPs for this network
     existing_ips = (
