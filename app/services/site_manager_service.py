@@ -100,8 +100,17 @@ def fetch_devices() -> list[dict]:
 
 
 def fetch_isp_metrics() -> dict:
-    """Fetch ISP health metrics."""
+    """Fetch ISP health metrics. Uses EA endpoint."""
     with _get_client() as client:
-        r = client.get("/isp-metrics")
+        # Try the EA (Early Access) path first, then fall back to v1
+        for path in ["/ea/isp-metrics", "/isp-metrics"]:
+            try:
+                r = client.get(path)
+                if r.status_code == 200:
+                    return r.json()
+            except Exception:
+                continue
+        # If both fail, raise the last error
+        r = client.get("/ea/isp-metrics")
         r.raise_for_status()
         return r.json()
