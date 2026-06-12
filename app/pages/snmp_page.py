@@ -113,9 +113,12 @@ def render_snmp():
                         ip_list = [ip.address for ip in ips]
                         network_results.clear()
                         with network_results:
-                            ui.label(f"Scanning {len(ip_list)} IPs for SNMP...").classes(
-                                "text-sm text-gray-500"
-                            )
+                            with ui.row().classes("items-center gap-3"):
+                                ui.spinner(size="lg")
+                                ui.label(
+                                    f"Scanning {len(ip_list)} IPs for SNMP... "
+                                    f"This may take up to {len(ip_list) * int(timeout_input.value or 2) // 20 + 1} seconds."
+                                ).classes("text-sm text-gray-500")
 
                         results = scan_network_snmp(
                             ip_list,
@@ -129,8 +132,10 @@ def render_snmp():
                                 ui.label(
                                     "No SNMP-enabled devices found. Check community string."
                                 ).classes("text-orange")
+                                ui.notify("Scan complete — no SNMP devices found", type="warning")
                                 return
 
+                            ui.notify(f"Scan complete — {len(results)} SNMP devices found", type="positive")
                             ui.label(
                                 f"Found {len(results)} SNMP-enabled devices out of {len(ip_list)} probed"
                             ).classes("text-lg font-semibold text-green mb-4")
@@ -171,9 +176,12 @@ def render_snmp():
 
                         known_results.clear()
                         with known_results:
-                            ui.label(f"Querying {len(device_ips)} device IPs...").classes(
-                                "text-sm text-gray-500"
-                            )
+                            with ui.row().classes("items-center gap-3"):
+                                ui.spinner(size="lg")
+                                ui.label(
+                                    f"Querying {len(device_ips)} device IPs via SNMP... "
+                                    f"This may take up to {len(device_ips) * int(timeout_input.value or 2) // 20 + 1} seconds."
+                                ).classes("text-sm text-gray-500")
 
                         results = []
                         for device, ip in device_ips:
