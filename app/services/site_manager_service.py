@@ -100,17 +100,29 @@ def fetch_devices() -> list[dict]:
 
 
 def fetch_isp_metrics() -> dict:
-    """Fetch ISP health metrics. Uses EA endpoint."""
-    with _get_client() as client:
-        # Try the EA (Early Access) path first, then fall back to v1
-        for path in ["/ea/isp-metrics", "/isp-metrics"]:
-            try:
-                r = client.get(path)
-                if r.status_code == 200:
-                    return r.json()
-            except Exception:
-                continue
-        # If both fail, raise the last error
-        r = client.get("/ea/isp-metrics")
-        r.raise_for_status()
-        return r.json()
+    """Fetch ISP health metrics. Uses EA endpoint (separate base path)."""
+    # ISP metrics uses a different base path — not under /v1
+    try:
+        r = httpx.get(
+            "https://api.ui.com/ea/isp-metrics",
+            headers=CLOUD_HEADERS,
+            timeout=15.0,
+        )
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+
+    # Try other possible paths
+    for url in [
+        "https://api.ui.com/v1/isp-metrics",
+        "https://api.ui.com/ea/v1/isp-metrics",
+    ]:
+        try:
+            r = httpx.get(url, headers=CLOUD_HEADERS, timeout=15.0)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            continue
+
+    return {"error": "ISP metrics endpoint not available. This feature may require EA access or a specific firmware version."}
