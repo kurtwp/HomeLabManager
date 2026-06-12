@@ -3,7 +3,7 @@
 import ipaddress
 import socket
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -46,30 +46,41 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
     start_time = time.time()
     discovered_hosts: set[str] = set()
 
-    try:
-        import nmap
+    net = ipaddress.ip_network(network.cidr, strict=False)
+    all_host_ips = list(net.hosts())
 
-        nm = nmap.PortScanner()
-        nm.scan(hosts=network.cidr, arguments="-sn")  # Ping scan only
+    # Use subprocess ping — works without root, unlike nmap -sn
+    # Scan in parallel using concurrent futures for speed
+    import subprocess
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        for host in nm.all_hosts():
-            if nm[host].state() == "up":
-                discovered_hosts.add(host)
+    def ping_host(host_str: str) -> str | None:
+        """Ping a single host using system ping command."""
+        try:
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", "1", host_str],
+                capture_output=True,
+                timeout=3,
+            )
+            if result.returncode == 0:
+                return host_str
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        return None
 
-    except ImportError:
-        # Fallback: basic ping using ipaddress iteration
-        # This is slower but doesn't require nmap installed
-        net = ipaddress.ip_network(network.cidr, strict=False)
-        for host_ip in net.hosts():
-            host_str = str(host_ip)
-            try:
-                import ping3
+    # Limit to /24 or smaller for performance (max 254 hosts)
+    if len(all_host_ips) > 254:
+        all_host_ips = all_host_ips[:254]
 
-                response = ping3.ping(host_str, timeout=1)
-                if response is not None:
-                    discovered_hosts.add(host_str)
-            except (OSError, PermissionError):
-                pass
+    # Parallel ping with up to 50 threads
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {
+            executor.submit(ping_host, str(ip)): str(ip) for ip in all_host_ips
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                discovered_hosts.add(result)
 
     # Get existing IPs for this network
     existing_ips = (
@@ -114,10 +125,19 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
             if not ip_entry.hostname:
                 ip_entry.hostname = resolve_hostname(host_addr)
 
-    # Mark IPs not found as inactive
+    # Mark IPs not found as inactive — but only if they haven't been seen recently
+    # by another source (like UniFi sync). Protect IPs seen within the last hour.
+    recent_threshold = datetime.now(timezone.utc) - timedelta(hours=1)
+
     for ip_entry in existing_ips:
         if ip_entry.address not in discovered_hosts:
             if ip_entry.status == IPStatus.ACTIVE:
+                # Don't mark as inactive if recently seen by another source (e.g. UniFi sync)
+                if ip_entry.last_seen and ip_entry.last_seen > recent_threshold:
+                    continue
+                # Don't mark static IPs as inactive — they're manually configured
+                if ip_entry.assignment_type == AssignmentType.STATIC:
+                    continue
                 ip_entry.status = IPStatus.INACTIVE
                 hosts_removed += 1
 
