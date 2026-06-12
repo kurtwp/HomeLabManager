@@ -28,6 +28,15 @@ def render_dashboard():
         session.query(ScanLog).order_by(ScanLog.started_at.desc()).first()
     )
 
+    # Source breakdown
+    from sqlalchemy import func
+    source_counts = dict(
+        session.query(IPAddress.source, func.count())
+        .filter(IPAddress.status == IPStatus.ACTIVE)
+        .group_by(IPAddress.source)
+        .all()
+    )
+
     with ui.column().classes("page-container w-full"):
         ui.label("Dashboard").classes("text-3xl font-bold mb-4")
 
@@ -37,6 +46,21 @@ def render_dashboard():
             _stat_card("IP Addresses", str(total_ips), "tag", "green")
             _stat_card("Active Hosts", str(active_ips), "wifi", "orange")
             _stat_card("Devices", str(total_devices), "devices", "purple")
+
+        # Source breakdown
+        if source_counts:
+            with ui.row().classes("w-full gap-2 mt-2"):
+                ui.label("Active by source:").classes("text-sm text-gray-500")
+                source_labels = {
+                    "unifi_client": ("UniFi Clients", "blue"),
+                    "unifi_device": ("UniFi Infra", "purple"),
+                    "nmap_scan": ("Nmap Scan", "green"),
+                    "manual": ("Manual", "gray"),
+                    None: ("Unknown", "gray"),
+                }
+                for source, count in sorted(source_counts.items(), key=lambda x: -(x[1])):
+                    label, color = source_labels.get(source, (source or "Unknown", "gray"))
+                    ui.badge(f"{label}: {count}").props(f"color={color} outline")
 
         ui.separator().classes("my-4")
 

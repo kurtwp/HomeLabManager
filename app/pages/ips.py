@@ -92,6 +92,13 @@ def render_ips():
                                 ui.badge(ip.assignment_type.value.upper()).props(
                                     f'color={"blue" if ip.assignment_type == AssignmentType.STATIC else "orange"} outline'
                                 ).classes("text-xs")
+                                # Source indicator
+                                if ip.source:
+                                    source_colors = {"unifi_client": "teal", "unifi_device": "purple", "nmap_scan": "green", "manual": "gray"}
+                                    source_labels = {"unifi_client": "UniFi", "unifi_device": "Infra", "nmap_scan": "Nmap", "manual": "Manual"}
+                                    ui.badge(source_labels.get(ip.source, ip.source)).props(
+                                        f'color={source_colors.get(ip.source, "gray")} outline'
+                                    ).classes("text-xs")
                                 for tag in ip.tags:
                                     ui.html(
                                         f'<span style="font-size:0.65rem; padding:1px 8px; '

@@ -108,6 +108,7 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
                 assignment_type=AssignmentType.DHCP,
                 status=IPStatus.ACTIVE,
                 last_seen=datetime.now(timezone.utc),
+                source="nmap_scan",
             )
             session.add(new_ip)
             session.flush()

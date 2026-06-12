@@ -438,6 +438,7 @@ def sync_devices(session: Session) -> dict:
                             assignment_type=AssignmentType.STATIC,
                             status=IPStatus.ACTIVE,
                             last_seen=datetime.now(timezone.utc),
+                            source="unifi_device",
                         )
                         session.add(new_ip)
 
@@ -568,6 +569,7 @@ def sync_clients(session: Session) -> dict:
                     assignment_type=assignment,
                     status=IPStatus.ACTIVE,
                     last_seen=datetime.now(timezone.utc),
+                    source="unifi_client",
                 )
                 session.add(new_ip)
                 session.flush()

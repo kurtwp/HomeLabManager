@@ -39,6 +39,7 @@ class IPAddress(Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    source: Mapped[str | None] = mapped_column(String(50), nullable=True)  # unifi_client, unifi_device, nmap_scan, manual
 
     # Foreign keys
     network_id: Mapped[int] = mapped_column(
