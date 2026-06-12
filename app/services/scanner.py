@@ -127,14 +127,17 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
 
     # Mark IPs not found as inactive — but only if they haven't been seen recently
     # by another source (like UniFi sync). Protect IPs seen within the last hour.
-    recent_threshold = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent_threshold = datetime.utcnow() - timedelta(hours=1)
 
     for ip_entry in existing_ips:
         if ip_entry.address not in discovered_hosts:
             if ip_entry.status == IPStatus.ACTIVE:
                 # Don't mark as inactive if recently seen by another source (e.g. UniFi sync)
-                if ip_entry.last_seen and ip_entry.last_seen > recent_threshold:
-                    continue
+                if ip_entry.last_seen:
+                    # Handle both naive and aware datetimes from DB
+                    last_seen = ip_entry.last_seen.replace(tzinfo=None) if ip_entry.last_seen.tzinfo else ip_entry.last_seen
+                    if last_seen > recent_threshold:
+                        continue
                 # Don't mark static IPs as inactive — they're manually configured
                 if ip_entry.assignment_type == AssignmentType.STATIC:
                     continue
