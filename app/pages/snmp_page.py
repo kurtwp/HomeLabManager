@@ -232,34 +232,37 @@ def render_snmp():
                     known_results = ui.column().classes("w-full mt-4")
 
                     def query_known_devices():
-                        devices = session.query(Device).all()
-                        device_ips = []
-                        for d in devices:
-                            for ip in d.ip_addresses:
-                                device_ips.append((d, ip.address))
-
-                        if not device_ips:
-                            ui.notify("No devices with IPs found", type="warning")
+                        # Query ALL known IPs, not just device-linked ones
+                        all_ips = session.query(IPAddress).all()
+                        if not all_ips:
+                            ui.notify("No IPs found. Run a scan first.", type="warning")
                             return
+
+                        # Build IP list and map to device names
+                        ip_list = []
+                        ip_to_label = {}
+                        for ip in all_ips:
+                            ip_list.append(ip.address)
+                            label = ip.hostname or ""
+                            if ip.device:
+                                label = ip.device.name
+                            ip_to_label[ip.address] = label
 
                         known_results.clear()
                         with known_results:
                             with ui.row().classes("items-center gap-3"):
                                 ui.spinner(size="lg")
                                 ui.label(
-                                    f"Querying {len(device_ips)} device IPs via SNMP... "
-                                    f"This may take up to {len(device_ips) * int(timeout_input.value or 2) // 20 + 1} seconds."
+                                    f"Querying {len(ip_list)} IPs via SNMP... "
+                                    f"This may take up to {len(ip_list) * int(timeout_input.value or 2) // 20 + 1} seconds."
                                 ).classes("text-sm text-gray-500")
 
-                        results = []
                         args = get_snmp_args()
 
                         # Run queries in parallel to avoid blocking the event loop
                         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-                        ip_to_device = {ip: device for device, ip in device_ips}
-                        ip_list = [ip for _, ip in device_ips]
-
+                        results = []
                         with ThreadPoolExecutor(max_workers=20) as executor:
                             futures = {
                                 executor.submit(get_device_info, ip, **args): ip
@@ -268,35 +271,44 @@ def render_snmp():
                             for future in as_completed(futures):
                                 ip = futures[future]
                                 info = future.result()
-                                device = ip_to_device[ip]
-                                results.append((device, info))
+                                results.append((ip_to_label.get(ip, ""), info))
 
                         known_results.clear()
                         with known_results:
-                            responding = [(d, i) for d, i in results if i.reachable]
-                            not_responding = [(d, i) for d, i in results if not i.reachable]
+                            responding = [(lbl, i) for lbl, i in results if i.reachable]
+                            not_responding = [(lbl, i) for lbl, i in results if not i.reachable]
 
+                            ui.notify(
+                                f"Done: {len(responding)} responding, {len(not_responding)} not responding",
+                                type="positive" if responding else "warning",
+                            )
                             ui.label(
                                 f"{len(responding)} responding, {len(not_responding)} not responding"
                             ).classes("text-sm mb-4")
 
                             if responding:
-                                for device, info in responding:
+                                for label, info in sorted(responding, key=lambda x: x[1].ip):
+                                    display = f"{info.ip}"
+                                    if label:
+                                        display += f" ({label})"
+                                    if info.sys_name:
+                                        display += f" — {info.sys_name}"
                                     with ui.expansion(
-                                        f"{device.name} ({info.ip}) — {info.sys_name}",
+                                        display,
                                         icon="check_circle",
                                     ).classes("w-full"):
                                         _render_device_info(info)
                                         _render_update_button(session, info)
 
                             if not_responding:
-                                ui.label("Not responding to SNMP:").classes(
-                                    "text-md font-semibold mt-4 text-orange"
-                                )
-                                for device, info in not_responding:
-                                    ui.label(f"  • {device.name} ({info.ip})").classes(
-                                        "text-sm text-gray-500"
-                                    )
+                                with ui.expansion(
+                                    f"Not responding ({len(not_responding)})", icon="cancel"
+                                ).classes("w-full"):
+                                    for label, info in sorted(not_responding, key=lambda x: x[1].ip):
+                                        name_part = f" ({label})" if label else ""
+                                        ui.label(f"• {info.ip}{name_part}").classes(
+                                            "text-sm text-gray-500"
+                                        )
 
                     ui.button(
                         "Query All Devices", icon="device_hub", on_click=query_known_devices
