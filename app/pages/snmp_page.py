@@ -253,9 +253,23 @@ def render_snmp():
 
                         results = []
                         args = get_snmp_args()
-                        for device, ip in device_ips:
-                            info = get_device_info(ip, **args)
-                            results.append((device, info))
+
+                        # Run queries in parallel to avoid blocking the event loop
+                        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+                        ip_to_device = {ip: device for device, ip in device_ips}
+                        ip_list = [ip for _, ip in device_ips]
+
+                        with ThreadPoolExecutor(max_workers=20) as executor:
+                            futures = {
+                                executor.submit(get_device_info, ip, **args): ip
+                                for ip in ip_list
+                            }
+                            for future in as_completed(futures):
+                                ip = futures[future]
+                                info = future.result()
+                                device = ip_to_device[ip]
+                                results.append((device, info))
 
                         known_results.clear()
                         with known_results:
