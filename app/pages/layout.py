@@ -29,12 +29,13 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("Docs", "/docs").classes("nav-link")
             ui.link("Tags", "/tags").classes("nav-link")
 
-            # Discovery dropdown (UniFi, SNMP, Nmap, Scheduler)
+            # Discovery dropdown (UniFi, SNMP, Nmap, Ping, Scheduler)
             with ui.button("Discovery", icon="radar").props("flat color=white no-caps"):
                 with ui.menu():
                     ui.menu_item("UniFi Sync", lambda: ui.navigate.to("/unifi"))
                     ui.menu_item("SNMP Discovery", lambda: ui.navigate.to("/snmp"))
                     ui.menu_item("Nmap Scanner", lambda: ui.navigate.to("/nmap"))
+                    ui.menu_item("Ping Scan", lambda: ui.navigate.to("/ping-scan"))
                     ui.separator()
                     ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
 
