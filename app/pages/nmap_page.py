@@ -36,6 +36,11 @@ def render_nmap():
                         "text-sm text-gray-500 mb-4"
                     )
 
+                    # Sudo toggle
+                    sudo_toggle = ui.switch("Run as root (sudo)").tooltip(
+                        "Required for SYN scan, OS detection, and MAC address discovery"
+                    )
+
                     networks = get_all_networks(session)
                     target_options = {n.cidr: f"{n.name} ({n.cidr})" for n in networks}
 
@@ -91,6 +96,8 @@ def render_nmap():
 
                         # Build command
                         cmd_parts = ["nmap"]
+                        if sudo_toggle.value:
+                            cmd_parts = ["sudo", "nmap"]
                         if scan_type.value:
                             cmd_parts.extend(scan_type.value.split())
                         if timing_select.value:
@@ -123,6 +130,11 @@ def render_nmap():
                         "Enter any nmap command. The 'nmap' prefix is added automatically."
                     ).classes("text-sm text-gray-500 mb-4")
 
+                    # Sudo toggle for custom commands
+                    custom_sudo_toggle = ui.switch("Run as root (sudo)").tooltip(
+                        "Required for SYN scan, OS detection, and MAC address discovery"
+                    )
+
                     cmd_input = ui.input(
                         "Nmap Arguments",
                         placeholder="e.g. -sV -T4 192.168.2.0/24",
@@ -149,7 +161,10 @@ def render_nmap():
                             ui.notify("Enter nmap arguments", type="warning")
                             return
 
-                        cmd_parts = ["nmap"] + cmd_input.value.split()
+                        if custom_sudo_toggle.value:
+                            cmd_parts = ["sudo", "nmap"] + cmd_input.value.split()
+                        else:
+                            cmd_parts = ["nmap"] + cmd_input.value.split()
                         cmd_str = " ".join(cmd_parts)
 
                         custom_results.clear()
