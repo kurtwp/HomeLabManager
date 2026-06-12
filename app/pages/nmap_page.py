@@ -118,9 +118,21 @@ def render_nmap():
 
                         _execute_nmap(cmd_parts, cmd_str, quick_results)
 
-                    ui.button(
-                        "Run Scan", icon="radar", on_click=run_quick_scan
-                    ).props("color=primary").classes("mt-3")
+                    def clear_quick_scan():
+                        target_input.value = ""
+                        scan_type.value = "-sn"
+                        timing_select.value = "-T4"
+                        extra_args.value = ""
+                        sudo_toggle.value = False
+                        quick_results.clear()
+
+                    with ui.row().classes("gap-2 mt-3"):
+                        ui.button(
+                            "Run Scan", icon="radar", on_click=run_quick_scan
+                        ).props("color=primary")
+                        ui.button(
+                            "Clear", icon="clear_all", on_click=clear_quick_scan
+                        ).props("flat color=grey")
 
             # --- Custom Command ---
             with ui.tab_panel(custom_tab):
@@ -177,9 +189,18 @@ def render_nmap():
 
                         _execute_nmap(cmd_parts, cmd_str, custom_results)
 
-                    ui.button(
-                        "Run Command", icon="terminal", on_click=run_custom_scan
-                    ).props("color=primary").classes("mt-3")
+                    def clear_custom_scan():
+                        cmd_input.value = ""
+                        custom_sudo_toggle.value = False
+                        custom_results.clear()
+
+                    with ui.row().classes("gap-2 mt-3"):
+                        ui.button(
+                            "Run Command", icon="terminal", on_click=run_custom_scan
+                        ).props("color=primary")
+                        ui.button(
+                            "Clear", icon="clear_all", on_click=clear_custom_scan
+                        ).props("flat color=grey")
 
     session.close()
 
