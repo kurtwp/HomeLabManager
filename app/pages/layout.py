@@ -28,8 +28,16 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("IPs", "/ips").classes("nav-link")
             ui.link("Docs", "/docs").classes("nav-link")
             ui.link("Tags", "/tags").classes("nav-link")
-            ui.link("UniFi", "/unifi").classes("nav-link")
-            ui.link("Scheduler", "/scheduler").classes("nav-link")
+
+            # Discovery dropdown (UniFi, SNMP, Network Scan)
+            with ui.button("Discovery", icon="radar").props("flat color=white no-caps"):
+                with ui.menu():
+                    ui.menu_item("UniFi Sync", lambda: ui.navigate.to("/unifi"))
+                    ui.menu_item("SNMP Discovery", lambda: ui.navigate.to("/snmp"))
+                    ui.menu_item("Network Scan (Ping)", lambda: ui.navigate.to("/networks"))
+                    ui.separator()
+                    ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
+
             ui.link("Import/Export", "/import-export").classes("nav-link")
             ui.link("History", "/history").classes("nav-link")
 
@@ -41,9 +49,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Reports", lambda: ui.navigate.to("/reports"))
                     ui.menu_item("Locations", lambda: ui.navigate.to("/locations"))
                     ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
-                    ui.menu_item("SNMP Discovery", lambda: ui.navigate.to("/snmp"))
 
-        with ui.row().classes("items-center gap-2"):
             search_input = ui.input(placeholder="Search...").props(
                 'dense outlined dark color="white"'
             ).classes("w-64")
