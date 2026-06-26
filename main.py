@@ -100,8 +100,84 @@ def network_detail_page(network_id: int):
             ui.label("Subnet Map").classes("text-lg font-semibold mb-2")
             render_subnet_grid(network.cidr, ips)
 
-        # Tags
-        render_tag_assignment(session, network)
+        # Tags + DHCP Range (side by side)
+        with ui.row().classes("w-full gap-4 mt-4 flex-wrap"):
+            # Tags (left half)
+            with ui.card().classes("flex-1 min-w-[300px]"):
+                ui.label("Tags").classes("text-lg font-semibold mb-2")
+                # Inline tag assignment (from the reusable component logic)
+                from app.models.tag import Tag
+                all_tags = session.query(Tag).order_by(Tag.name).all()
+                current_tags = network.tags
+                current_tag_ids = {t.id for t in current_tags}
+
+                tags_display = ui.row().classes("flex-wrap gap-1 mb-3")
+
+                def refresh_tag_display():
+                    tags_display.clear()
+                    with tags_display:
+                        if not network.tags:
+                            ui.label("No tags").classes("text-sm text-gray-400 italic")
+                        else:
+                            for tag in network.tags:
+                                with ui.row().classes("items-center gap-0"):
+                                    ui.html(
+                                        f'<span style="display:inline-flex; align-items:center; '
+                                        f"padding:2px 10px; border-radius:12px; font-size:0.75rem; "
+                                        f"font-weight:500; background:{tag.color}20; "
+                                        f'color:{tag.color}; border:1px solid {tag.color}40;">'
+                                        f"{tag.name}</span>"
+                                    )
+                                    ui.button(
+                                        icon="close",
+                                        on_click=lambda t=tag: (
+                                            network.tags.remove(t),
+                                            session.commit(),
+                                            refresh_tag_display(),
+                                        ),
+                                    ).props("flat round size=xs").classes("ml-0")
+
+                refresh_tag_display()
+
+                available_tags = {t.id: t.name for t in all_tags if t.id not in current_tag_ids}
+                if available_tags:
+                    with ui.row().classes("items-center gap-2"):
+                        tag_select = ui.select(available_tags, label="Add tag", with_input=True).classes("w-36")
+
+                        def add_net_tag():
+                            if tag_select.value:
+                                tag = session.query(Tag).filter(Tag.id == tag_select.value).first()
+                                if tag and tag not in network.tags:
+                                    network.tags.append(tag)
+                                    session.commit()
+                                    refresh_tag_display()
+
+                        ui.button("Add", on_click=add_net_tag).props("flat color=primary size=sm")
+
+            # DHCP Range (right half)
+            with ui.card().classes("flex-1 min-w-[300px]"):
+                ui.label("DHCP Range").classes("text-lg font-semibold mb-2")
+                ui.label(
+                    "IPs within this range → DHCP. Outside → Static."
+                ).classes("text-xs text-gray-500 mb-2")
+
+                with ui.row().classes("gap-2 items-end"):
+                    dhcp_start_edit = ui.input(
+                        "Start", value=network.dhcp_start or "", placeholder="e.g. 192.168.2.100"
+                    ).classes("w-40")
+                    dhcp_end_edit = ui.input(
+                        "End", value=network.dhcp_end or "", placeholder="e.g. 192.168.2.245"
+                    ).classes("w-40")
+
+                    def save_dhcp_range():
+                        update_network(
+                            session, network.id,
+                            dhcp_start=dhcp_start_edit.value or None,
+                            dhcp_end=dhcp_end_edit.value or None,
+                        )
+                        ui.notify("DHCP range saved!", type="positive")
+
+                    ui.button("Save", on_click=save_dhcp_range).props("color=primary size=sm")
 
         # IP table with hostname refresh
         with ui.row().classes("items-center justify-between mt-4"):
@@ -145,31 +221,6 @@ def network_detail_page(network_id: int):
             )
         else:
             ui.label("No IPs tracked in this network yet.").classes("text-gray-500")
-
-        # DHCP Range editor
-        with ui.card().classes("w-full mt-4"):
-            ui.label("DHCP Range").classes("text-lg font-semibold mb-2")
-            ui.label(
-                "IPs within this range are classified as DHCP. IPs outside are classified as Static."
-            ).classes("text-xs text-gray-500 mb-2")
-
-            with ui.row().classes("gap-4 items-end"):
-                dhcp_start_edit = ui.input(
-                    "DHCP Start", value=network.dhcp_start or "", placeholder="e.g. 192.168.2.100"
-                ).classes("w-48")
-                dhcp_end_edit = ui.input(
-                    "DHCP End", value=network.dhcp_end or "", placeholder="e.g. 192.168.2.245"
-                ).classes("w-48")
-
-                def save_dhcp_range():
-                    update_network(
-                        session, network.id,
-                        dhcp_start=dhcp_start_edit.value or None,
-                        dhcp_end=dhcp_end_edit.value or None,
-                    )
-                    ui.notify("DHCP range saved!", type="positive")
-
-                ui.button("Save", on_click=save_dhcp_range).props("color=primary size=sm")
 
         # Notes editor
         with ui.card().classes("w-full mt-4"):
