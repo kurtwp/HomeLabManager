@@ -85,6 +85,8 @@ def render_unifi():
                         parts.append(f"{result['updated']} updated")
                     if "skipped" in result:
                         parts.append(f"{result['skipped']} skipped")
+                    if result.get("marked_inactive"):
+                        parts.append(f"{result['marked_inactive']} marked inactive")
                     ui.label(" · ".join(parts)).classes("text-sm text-green")
                     if result.get("errors"):
                         for err in result["errors"][:5]:
@@ -155,6 +157,7 @@ def render_unifi():
                         log_result("Client Sync", result)
                         ui.notify(
                             f"Clients: {result['created']} created, {result['updated']} updated, "
+                            f"{result.get('marked_inactive', 0)} marked inactive, "
                             f"{result['skipped']} skipped",
                             type="positive",
                         )

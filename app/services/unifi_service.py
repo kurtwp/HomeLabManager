@@ -588,6 +588,33 @@ def sync_clients(session: Session) -> dict:
 
     session.commit()
 
+    # Mark UniFi client IPs as inactive if they weren't in this sync
+    # (they've disconnected since last sync)
+    synced_addresses = set()
+    for client in unifi_clients:
+        ip_addr = (
+            client.get("ip")
+            or client.get("ipAddress")
+            or client.get("fixedIp")
+            or client.get("fixed_ip")
+        )
+        if ip_addr:
+            synced_addresses.add(ip_addr)
+
+    marked_inactive = 0
+    all_unifi_client_ips = (
+        session.query(IPAddress)
+        .filter(IPAddress.source == "unifi_client", IPAddress.status == IPStatus.ACTIVE)
+        .all()
+    )
+    for ip_entry in all_unifi_client_ips:
+        if ip_entry.address not in synced_addresses:
+            ip_entry.status = IPStatus.INACTIVE
+            marked_inactive += 1
+
+    if marked_inactive:
+        session.commit()
+
     # Add skipped IPs info to errors for visibility
     if skipped_ips:
         missing_subnets = set()
@@ -601,7 +628,7 @@ def sync_clients(session: Session) -> dict:
             f"Sample IPs: {', '.join(skipped_ips[:8])}"
         )
 
-    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
+    return {"created": created, "updated": updated, "skipped": skipped, "marked_inactive": marked_inactive, "errors": errors}
 
 
 def test_connection() -> dict:
