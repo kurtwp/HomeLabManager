@@ -146,6 +146,31 @@ def network_detail_page(network_id: int):
         else:
             ui.label("No IPs tracked in this network yet.").classes("text-gray-500")
 
+        # DHCP Range editor
+        with ui.card().classes("w-full mt-4"):
+            ui.label("DHCP Range").classes("text-lg font-semibold mb-2")
+            ui.label(
+                "IPs within this range are classified as DHCP. IPs outside are classified as Static."
+            ).classes("text-xs text-gray-500 mb-2")
+
+            with ui.row().classes("gap-4 items-end"):
+                dhcp_start_edit = ui.input(
+                    "DHCP Start", value=network.dhcp_start or "", placeholder="e.g. 192.168.2.100"
+                ).classes("w-48")
+                dhcp_end_edit = ui.input(
+                    "DHCP End", value=network.dhcp_end or "", placeholder="e.g. 192.168.2.245"
+                ).classes("w-48")
+
+                def save_dhcp_range():
+                    update_network(
+                        session, network.id,
+                        dhcp_start=dhcp_start_edit.value or None,
+                        dhcp_end=dhcp_end_edit.value or None,
+                    )
+                    ui.notify("DHCP range saved!", type="positive")
+
+                ui.button("Save", on_click=save_dhcp_range).props("color=primary size=sm")
+
         # Notes editor
         with ui.card().classes("w-full mt-4"):
             ui.label("Network Notes").classes("text-lg font-semibold mb-2")

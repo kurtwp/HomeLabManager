@@ -185,6 +185,12 @@ def render_networks():
         )
         desc_input = ui.textarea("Description (optional)").classes("w-full")
 
+        ui.label("DHCP Range (optional)").classes("text-sm font-semibold mt-2 text-gray-400")
+        ui.label("Used to classify discovered IPs as Static or DHCP.").classes("text-xs text-gray-500")
+        with ui.row().classes("gap-2 w-full"):
+            dhcp_start_input = ui.input("DHCP Start", placeholder="e.g. 192.168.1.100").classes("flex-1")
+            dhcp_end_input = ui.input("DHCP End", placeholder="e.g. 192.168.1.254").classes("flex-1")
+
         def save_network():
             if not name_input.value or not cidr_input.value:
                 ui.notify("Name and CIDR are required", type="warning")
@@ -212,6 +218,8 @@ def render_networks():
                     gateway=gateway_input.value or None,
                     dns_servers=dns_input.value or None,
                     description=desc_input.value or None,
+                    dhcp_start=dhcp_start_input.value or None,
+                    dhcp_end=dhcp_end_input.value or None,
                 )
                 ui.notify("Network created!", type="positive")
                 add_dialog.close()

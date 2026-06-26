@@ -17,6 +17,8 @@ def create_network(
     dns_servers: str | None = None,
     description: str | None = None,
     notes: str | None = None,
+    dhcp_start: str | None = None,
+    dhcp_end: str | None = None,
 ) -> Network:
     """Create a new network entry."""
     # Validate CIDR
@@ -30,6 +32,8 @@ def create_network(
         dns_servers=dns_servers,
         description=description,
         notes=notes,
+        dhcp_start=dhcp_start,
+        dhcp_end=dhcp_end,
     )
     session.add(network)
     session.flush()

@@ -22,6 +22,8 @@ class Network(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    dhcp_start: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    dhcp_end: Mapped[str | None] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

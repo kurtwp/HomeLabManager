@@ -143,6 +143,16 @@ def render_ping_scan():
             except Exception:
                 pass
 
+            # Also check locally-defined DHCP ranges on networks
+            for net_obj in networks:
+                if net_obj.dhcp_start and net_obj.dhcp_end:
+                    try:
+                        start = ipaddress.ip_address(net_obj.dhcp_start)
+                        stop = ipaddress.ip_address(net_obj.dhcp_end)
+                        dhcp_ranges.append((start, stop))
+                    except ValueError:
+                        pass
+
             def determine_assignment(ip_str: str) -> AssignmentType:
                 """Determine if IP is static or DHCP based on DHCP ranges."""
                 if dhcp_ranges:

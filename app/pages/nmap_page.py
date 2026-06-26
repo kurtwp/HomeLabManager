@@ -307,6 +307,16 @@ def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
                         except Exception:
                             pass
 
+                        # Also check locally-defined DHCP ranges on networks
+                        for net in networks:
+                            if net.dhcp_start and net.dhcp_end:
+                                try:
+                                    start = ipa.ip_address(net.dhcp_start)
+                                    stop = ipa.ip_address(net.dhcp_end)
+                                    dhcp_ranges.append((start, stop))
+                                except ValueError:
+                                    pass
+
                         def get_assignment(ip_str):
                             if dhcp_ranges:
                                 try:
