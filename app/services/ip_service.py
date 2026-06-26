@@ -1,5 +1,6 @@
 """Service for IP address CRUD operations."""
 
+import ipaddress as ipaddress_mod
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
@@ -51,13 +52,14 @@ def create_ip(
 
 
 def get_ips_for_network(session: Session, network_id: int) -> list[IPAddress]:
-    """Get all IPs belonging to a network."""
-    return (
+    """Get all IPs belonging to a network, sorted numerically."""
+    ips = (
         session.query(IPAddress)
         .filter(IPAddress.network_id == network_id)
-        .order_by(IPAddress.address)
         .all()
     )
+    ips.sort(key=lambda ip: ipaddress_mod.ip_address(ip.address))
+    return ips
 
 
 def get_ip_by_id(session: Session, ip_id: int) -> IPAddress | None:

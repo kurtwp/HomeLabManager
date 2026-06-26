@@ -73,6 +73,10 @@ def render_ips():
                     )
                 ips = query.order_by(IPAddress.address).all()
 
+                # Sort numerically by IP
+                import ipaddress as _ipa
+                ips.sort(key=lambda ip: _ipa.ip_address(ip.address))
+
                 if not ips:
                     ui.label("No IP addresses found.").classes("text-gray-500")
                     return
