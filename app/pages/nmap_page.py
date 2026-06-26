@@ -269,6 +269,91 @@ def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
                 # Always show raw output in expandable section
                 with ui.expansion("Raw Output", icon="code").classes("w-full mt-2"):
                     ui.code(output, language="text").classes("w-full text-xs")
+
+                # Save to DB button
+                if host_blocks:
+                    def save_nmap_to_db():
+                        from app.database.db import get_session_direct
+                        from app.models.ip_address import IPAddress, AssignmentType, IPStatus
+                        from app.models.network import Network
+                        from datetime import datetime, timezone
+                        import ipaddress as ipa
+
+                        db_session = get_session_direct()
+                        networks = db_session.query(Network).all()
+                        added = 0
+                        updated = 0
+                        skipped = 0
+
+                        for host in host_blocks:
+                            ip_addr = host.get("ip")
+                            if not ip_addr:
+                                continue
+
+                            hostname = host.get("hostname") or None
+                            os_info = host.get("os") or None
+
+                            # Find matching network
+                            target_net = None
+                            for net in networks:
+                                try:
+                                    if ipa.ip_address(ip_addr) in ipa.ip_network(net.cidr, strict=False):
+                                        target_net = net
+                                        break
+                                except ValueError:
+                                    continue
+
+                            if not target_net:
+                                skipped += 1
+                                continue
+
+                            # Check for duplicates
+                            existing = db_session.query(IPAddress).filter(IPAddress.address == ip_addr).first()
+
+                            if existing:
+                                existing.last_seen = datetime.now(timezone.utc)
+                                existing.status = IPStatus.ACTIVE
+                                if hostname and not existing.hostname:
+                                    existing.hostname = hostname
+                                # Add OS/port info to notes if not already there
+                                if os_info and (not existing.notes or os_info not in existing.notes):
+                                    note_addition = f"\n**OS:** {os_info}"
+                                    if host.get("ports"):
+                                        ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
+                                        note_addition += f"\n**Open Ports:** {ports_str}"
+                                    existing.notes = (existing.notes or "") + note_addition
+                                updated += 1
+                            else:
+                                notes = ""
+                                if os_info:
+                                    notes += f"**OS:** {os_info}\n"
+                                if host.get("ports"):
+                                    ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
+                                    notes += f"**Open Ports:** {ports_str}\n"
+
+                                new_ip = IPAddress(
+                                    address=ip_addr,
+                                    network_id=target_net.id,
+                                    hostname=hostname,
+                                    assignment_type=AssignmentType.DHCP,
+                                    status=IPStatus.ACTIVE,
+                                    last_seen=datetime.now(timezone.utc),
+                                    source="nmap_scan",
+                                    notes=notes or None,
+                                )
+                                db_session.add(new_ip)
+                                added += 1
+
+                        db_session.commit()
+                        db_session.close()
+                        ui.notify(
+                            f"Saved: {added} added, {updated} updated, {skipped} skipped (no network)",
+                            type="positive",
+                        )
+
+                    ui.button(
+                        "Save Results to Database", icon="save", on_click=save_nmap_to_db
+                    ).props("color=primary outline").classes("mt-3")
             else:
                 ui.label("No output returned.").classes("text-gray-500 mt-2")
 
