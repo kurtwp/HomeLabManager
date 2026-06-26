@@ -85,7 +85,7 @@ def fetch_sites() -> list[dict]:
 
 
 def fetch_devices() -> list[dict]:
-    """Fetch all devices across all sites (flattened from host groupings)."""
+    """Fetch all devices across all sites (flattened from host groupings, deduplicated by MAC)."""
     with _get_client() as client:
         r = client.get("/devices")
         r.raise_for_status()
@@ -106,7 +106,21 @@ def fetch_devices() -> list[dict]:
                 # If the entry itself looks like a device, include it
                 all_devices.append(entry)
 
-        return all_devices
+        # Deduplicate by MAC — keep the one with status "online" or most recent
+        seen_macs = {}
+        for dev in all_devices:
+            mac = dev.get("mac", "")
+            if mac in seen_macs:
+                # Prefer the one that's online, or from a named host
+                existing = seen_macs[mac]
+                if dev.get("status") == "online" and existing.get("status") != "online":
+                    seen_macs[mac] = dev
+                elif dev.get("_hostName", "").isalpha() and not existing.get("_hostName", "").isalpha():
+                    seen_macs[mac] = dev
+            else:
+                seen_macs[mac] = dev
+
+        return list(seen_macs.values())
 
 
 def fetch_isp_metrics() -> dict:
