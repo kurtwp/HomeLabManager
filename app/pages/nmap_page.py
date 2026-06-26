@@ -285,6 +285,40 @@ def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
                         updated = 0
                         skipped = 0
 
+                        # Fetch DHCP ranges for static/DHCP classification
+                        dhcp_ranges = []
+                        try:
+                            from app.services.unifi_service import fetch_networks_from_unifi, is_configured
+                            if is_configured():
+                                unifi_nets = fetch_networks_from_unifi()
+                                for unet in unifi_nets:
+                                    ipv4_config = unet.get("ipv4Configuration")
+                                    if isinstance(ipv4_config, dict):
+                                        dhcp_config = ipv4_config.get("dhcpConfiguration")
+                                        if isinstance(dhcp_config, dict):
+                                            ip_range = dhcp_config.get("ipAddressRange")
+                                            if isinstance(ip_range, dict) and ip_range.get("start") and ip_range.get("stop"):
+                                                try:
+                                                    start = ipa.ip_address(ip_range["start"])
+                                                    stop = ipa.ip_address(ip_range["stop"])
+                                                    dhcp_ranges.append((start, stop))
+                                                except ValueError:
+                                                    pass
+                        except Exception:
+                            pass
+
+                        def get_assignment(ip_str):
+                            if dhcp_ranges:
+                                try:
+                                    ip_obj = ipa.ip_address(ip_str)
+                                    for s, e in dhcp_ranges:
+                                        if s <= ip_obj <= e:
+                                            return AssignmentType.DHCP
+                                    return AssignmentType.STATIC
+                                except ValueError:
+                                    pass
+                            return AssignmentType.DHCP
+
                         for host in host_blocks:
                             ip_addr = host.get("ip")
                             if not ip_addr:
@@ -335,7 +369,7 @@ def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
                                     address=ip_addr,
                                     network_id=target_net.id,
                                     hostname=hostname,
-                                    assignment_type=AssignmentType.DHCP,
+                                    assignment_type=get_assignment(ip_addr),
                                     status=IPStatus.ACTIVE,
                                     last_seen=datetime.now(timezone.utc),
                                     source="nmap_scan",
