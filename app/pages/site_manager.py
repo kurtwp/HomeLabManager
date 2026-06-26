@@ -252,6 +252,19 @@ def render_site_manager():
                             ui.label("No ISP metrics available.").classes("text-gray-500")
                             return
 
+                        # Check if the response is an error message
+                        if isinstance(metrics, dict) and "error" in metrics:
+                            with ui.card().classes("w-full"):
+                                with ui.row().classes("items-center gap-2"):
+                                    ui.icon("info").classes("text-orange text-2xl")
+                                    ui.label("ISP Metrics Unavailable").classes("text-lg font-semibold")
+                                ui.label(metrics["error"]).classes("text-sm text-gray-500 mt-2")
+                                ui.label(
+                                    "To enable: sign in at unifi.ui.com → Settings → "
+                                    "enable Early Access, then try again."
+                                ).classes("text-xs text-gray-400 mt-1")
+                            return
+
                         # Display as formatted JSON or key-value pairs
                         data_list = metrics if isinstance(metrics, list) else metrics.get("data", [metrics])
 
