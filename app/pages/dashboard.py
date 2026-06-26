@@ -22,7 +22,11 @@ def render_dashboard():
     # Gather stats
     total_networks = session.query(Network).count()
     total_ips = session.query(IPAddress).count()
-    active_ips = session.query(IPAddress).filter(IPAddress.status == IPStatus.ACTIVE).count()
+    active_clients = (
+        session.query(IPAddress)
+        .filter(IPAddress.status == IPStatus.ACTIVE, IPAddress.source != "unifi_device")
+        .count()
+    )
     total_devices = session.query(Device).count()
     recent_scan = (
         session.query(ScanLog).order_by(ScanLog.started_at.desc()).first()
@@ -44,7 +48,7 @@ def render_dashboard():
         with ui.row().classes("w-full gap-4 flex-wrap"):
             _stat_card("Networks", str(total_networks), "lan", "blue")
             _stat_card("IP Addresses", str(total_ips), "tag", "green")
-            _stat_card("Active Hosts", str(active_ips), "wifi", "orange")
+            _stat_card("Active Hosts", str(active_clients), "wifi", "orange")
             _stat_card("Devices", str(total_devices), "devices", "purple")
 
         # Source breakdown
