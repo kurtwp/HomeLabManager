@@ -183,7 +183,7 @@ def render_site_manager():
                             ui.label("Loading devices...").classes("text-sm text-gray-500")
 
                     try:
-                        devices = fetch_devices()
+                        current_devices, old_devices = fetch_devices()
                     except Exception as e:
                         devices_container.clear()
                         with devices_container:
@@ -192,11 +192,9 @@ def render_site_manager():
 
                     devices_container.clear()
                     with devices_container:
-                        if not devices:
+                        if not current_devices and not old_devices:
                             ui.label("No devices found.").classes("text-gray-500")
                             return
-
-                        ui.label(f"{len(devices)} device(s)").classes("text-sm text-gray-400 mb-2")
 
                         columns = [
                             {"name": "name", "label": "Name", "field": "name", "align": "left"},
@@ -207,21 +205,41 @@ def render_site_manager():
                             {"name": "firmware", "label": "Firmware", "field": "firmware", "align": "left"},
                             {"name": "host", "label": "Host", "field": "host", "align": "left"},
                         ]
-                        rows = []
-                        for dev in devices:
-                            rows.append({
-                                "name": dev.get("name") or "—",
-                                "model": dev.get("model") or dev.get("shortname") or "—",
-                                "mac": dev.get("mac") or "—",
-                                "ip": dev.get("ip") or "—",
-                                "state": dev.get("status") or dev.get("state") or "—",
-                                "firmware": dev.get("version") or "—",
-                                "host": dev.get("_hostName") or "—",
-                            })
 
-                        ui.table(columns=columns, rows=rows, row_key="mac").classes(
-                            "w-full"
-                        ).props("flat bordered dense")
+                        def _build_rows(device_list):
+                            return [
+                                {
+                                    "name": dev.get("name") or "—",
+                                    "model": dev.get("model") or dev.get("shortname") or "—",
+                                    "mac": dev.get("mac") or "—",
+                                    "ip": dev.get("ip") or "—",
+                                    "state": dev.get("status") or dev.get("state") or "—",
+                                    "firmware": dev.get("version") or "—",
+                                    "host": dev.get("_hostName") or "—",
+                                }
+                                for dev in device_list
+                            ]
+
+                        # Current devices table
+                        ui.label(f"Current Devices ({len(current_devices)})").classes(
+                            "text-lg font-semibold mb-2"
+                        )
+                        ui.table(
+                            columns=columns, rows=_build_rows(current_devices), row_key="mac"
+                        ).classes("w-full").props("flat bordered dense")
+
+                        # Old/previous locations table
+                        if old_devices:
+                            ui.separator().classes("my-4")
+                            ui.label(f"Previous Locations ({len(old_devices)})").classes(
+                                "text-lg font-semibold mb-2 text-gray-400"
+                            )
+                            ui.label(
+                                "Devices that were previously managed by a different host or have stale entries."
+                            ).classes("text-xs text-gray-500 mb-2")
+                            ui.table(
+                                columns=columns, rows=_build_rows(old_devices), row_key="mac"
+                            ).classes("w-full opacity-70").props("flat bordered dense")
 
                 ui.button("Load Devices", icon="refresh", on_click=load_devices).props(
                     "color=primary"

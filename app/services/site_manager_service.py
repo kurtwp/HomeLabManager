@@ -84,8 +84,13 @@ def fetch_sites() -> list[dict]:
         return data if isinstance(data, list) else data.get("data", [])
 
 
-def fetch_devices() -> list[dict]:
-    """Fetch all devices across all sites (flattened from host groupings, deduplicated by MAC)."""
+def fetch_devices() -> tuple[list[dict], list[dict]]:
+    """Fetch all devices across all sites (flattened from host groupings).
+    
+    Returns:
+        Tuple of (current_devices, old_devices) — deduplicated by MAC.
+        Current = online or from named host. Old = stale/duplicate entries.
+    """
     with _get_client() as client:
         r = client.get("/devices")
         r.raise_for_status()
@@ -103,24 +108,30 @@ def fetch_devices() -> list[dict]:
                     dev["_hostName"] = host_name
                     all_devices.append(dev)
             else:
-                # If the entry itself looks like a device, include it
                 all_devices.append(entry)
 
-        # Deduplicate by MAC — keep the one with status "online" or most recent
+        # Separate current vs old by MAC
+        # Current = online or from a named host; Old = stale duplicates
         seen_macs = {}
+        old_devices = []
         for dev in all_devices:
             mac = dev.get("mac", "")
             if mac in seen_macs:
-                # Prefer the one that's online, or from a named host
                 existing = seen_macs[mac]
+                # Decide which is current, which is old
                 if dev.get("status") == "online" and existing.get("status") != "online":
+                    old_devices.append(existing)
                     seen_macs[mac] = dev
                 elif dev.get("_hostName", "").isalpha() and not existing.get("_hostName", "").isalpha():
+                    old_devices.append(existing)
                     seen_macs[mac] = dev
+                else:
+                    old_devices.append(dev)
             else:
                 seen_macs[mac] = dev
 
-        return list(seen_macs.values())
+        current_devices = list(seen_macs.values())
+        return current_devices, old_devices
 
 
 def fetch_isp_metrics() -> dict:
