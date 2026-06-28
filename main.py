@@ -360,6 +360,6 @@ ui.run(
     title=APP_TITLE,
     port=APP_PORT,
     native=False,
-    reload=True,
+    reload=False,
     favicon="🌐",
 )
