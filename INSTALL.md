@@ -255,7 +255,13 @@ sudo systemctl restart homeipmanager
 ```
 
 ---
-
+## Update HomeIPAdmin
+To update it in the future when you push new code:
+```
+cd /opt/HomeIPAdmin
+sudo git pull
+sudo systemctl restart homeipmanager
+```
 ## Troubleshooting
 
 ### Check logs
