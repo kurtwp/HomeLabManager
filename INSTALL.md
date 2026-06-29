@@ -220,11 +220,11 @@ Only two files need to be backed up:
 
 ### Automated Daily Backup
 
-Create `/home/kpas/backups/backup_homeip.sh`:
+Create `/home/blah/backups/backup_homeip.sh`:
 
 ```bash
 #!/bin/bash
-BACKUP_DIR=/home/kpas/backups/homeipmanager
+BACKUP_DIR=/home/blah/backups/homeipmanager
 mkdir -p $BACKUP_DIR
 cp /opt/HomeIPAdmin/.env $BACKUP_DIR/.env
 cp /opt/HomeIPAdmin/home_lab_manager.db $BACKUP_DIR/home_lab_manager_$(date +%Y%m%d).db
@@ -233,10 +233,10 @@ find $BACKUP_DIR -name "*.db" -mtime +7 -delete
 ```
 
 ```bash
-chmod +x /home/kpas/backups/backup_homeip.sh
+chmod +x /home/blah/backups/backup_homeip.sh
 crontab -e
 # Add this line:
-0 2 * * * /home/kpas/backups/backup_homeip.sh
+0 2 * * * /home/blah/backups/backup_homeip.sh
 ```
 
 ### Restore
