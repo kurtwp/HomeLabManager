@@ -206,213 +206,202 @@ def render_nmap():
 
 
 def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
-    """Execute an nmap command and render results."""
-    try:
-        result = subprocess.run(
-            cmd_parts,
-            capture_output=True, text=True, timeout=300,  # 5 min max
-        )
+    """Execute an nmap command in a background thread and render results."""
+    import threading
 
-        results_container.clear()
-        with results_container:
-            # Show command that was run
-            with ui.card().classes("w-full"):
-                with ui.row().classes("items-center gap-2"):
-                    ui.icon("terminal").classes("text-gray-500")
-                    ui.label(cmd_str).classes("font-mono text-sm")
+    def _run_in_background():
+        try:
+            result = subprocess.run(
+                cmd_parts,
+                capture_output=True, text=True, timeout=600,  # 10 min max
+            )
+            _render_nmap_results(result, cmd_str, results_container)
+        except subprocess.TimeoutExpired:
+            results_container.clear()
+            with results_container:
+                ui.label("⚠️ Scan timed out (10 minute limit).").classes("text-orange")
+        except FileNotFoundError:
+            results_container.clear()
+            with results_container:
+                ui.label("❌ nmap not found. Install with: sudo apt install nmap").classes("text-red")
+        except Exception as e:
+            results_container.clear()
+            with results_container:
+                ui.label(f"❌ Error: {e}").classes("text-red")
 
-            if result.returncode != 0 and result.stderr:
-                with ui.card().classes("w-full bg-red-50 dark:bg-red-900 mt-2"):
-                    ui.label("Error").classes("font-semibold text-red")
-                    ui.code(result.stderr, language="text").classes("w-full text-xs")
+    thread = threading.Thread(target=_run_in_background, daemon=True)
+    thread.start()
 
-            if result.stdout:
-                # Parse and display results
-                output = result.stdout
 
-                # Extract summary stats
-                hosts_up = len(re.findall(r"Host is up", output))
-                ports_open = len(re.findall(r"(\d+)/\w+\s+open", output))
+def _render_nmap_results(result, cmd_str, results_container):
+    """Render nmap results after the scan completes."""
+    results_container.clear()
+    with results_container:
+        # Show command that was run
+        with ui.card().classes("w-full"):
+            with ui.row().classes("items-center gap-2"):
+                ui.icon("terminal").classes("text-gray-500")
+                ui.label(cmd_str).classes("font-mono text-sm")
 
-                with ui.row().classes("gap-4 mt-2 mb-2"):
-                    if hosts_up:
-                        ui.badge(f"{hosts_up} hosts up").props("color=green")
-                    if ports_open:
-                        ui.badge(f"{ports_open} open ports").props("color=blue")
+        if result.returncode != 0 and result.stderr:
+            with ui.card().classes("w-full bg-red-50 dark:bg-red-900 mt-2"):
+                ui.label("Error").classes("font-semibold text-red")
+                ui.code(result.stderr, language="text").classes("w-full text-xs")
 
-                # Structured output — parse host blocks
-                host_blocks = _parse_nmap_output(output)
+        if result.stdout:
+            output = result.stdout
 
-                if host_blocks:
+            # Extract summary stats
+            hosts_up = len(re.findall(r"Host is up", output))
+            ports_open = len(re.findall(r"(\d+)/\w+\s+open", output))
+
+            with ui.row().classes("gap-4 mt-2 mb-2"):
+                if hosts_up:
+                    ui.badge(f"{hosts_up} hosts up").props("color=green")
+                if ports_open:
+                    ui.badge(f"{ports_open} open ports").props("color=blue")
+
+            # Structured output — parse host blocks
+            host_blocks = _parse_nmap_output(output)
+
+            if host_blocks:
+                for host in host_blocks:
+                    with ui.expansion(
+                        f"{host['ip']} — {host.get('hostname', '')}",
+                        icon="computer",
+                    ).classes("w-full"):
+                        if host.get("state"):
+                            ui.label(f"State: {host['state']}").classes("text-sm")
+                        if host.get("latency"):
+                            ui.label(f"Latency: {host['latency']}").classes("text-sm text-gray-500")
+                        if host.get("os"):
+                            ui.label(f"OS: {host['os']}").classes("text-sm")
+                        if host.get("ports"):
+                            columns = [
+                                {"name": "port", "label": "Port", "field": "port", "align": "left"},
+                                {"name": "state", "label": "State", "field": "state", "align": "center"},
+                                {"name": "service", "label": "Service", "field": "service", "align": "left"},
+                                {"name": "version", "label": "Version", "field": "version", "align": "left"},
+                            ]
+                            ui.table(
+                                columns=columns, rows=host["ports"], row_key="port"
+                            ).classes("w-full").props("flat bordered dense")
+
+            # Always show raw output in expandable section
+            with ui.expansion("Raw Output", icon="code").classes("w-full mt-2"):
+                ui.code(output, language="text").classes("w-full text-xs")
+
+            # Save to DB button
+            if host_blocks:
+                def save_nmap_to_db():
+                    from app.database.db import get_session_direct
+                    from app.models.ip_address import IPAddress, AssignmentType, IPStatus
+                    from app.models.network import Network
+                    from datetime import datetime, timezone
+                    import ipaddress as ipa
+
+                    db_session = get_session_direct()
+                    networks = db_session.query(Network).all()
+                    added = 0
+                    updated = 0
+                    skipped = 0
+
+                    dhcp_ranges = []
+                    try:
+                        from app.services.unifi_service import fetch_networks_from_unifi, is_configured
+                        if is_configured():
+                            unifi_nets = fetch_networks_from_unifi()
+                            for unet in unifi_nets:
+                                ipv4_config = unet.get("ipv4Configuration")
+                                if isinstance(ipv4_config, dict):
+                                    dhcp_config = ipv4_config.get("dhcpConfiguration")
+                                    if isinstance(dhcp_config, dict):
+                                        ip_range = dhcp_config.get("ipAddressRange")
+                                        if isinstance(ip_range, dict) and ip_range.get("start") and ip_range.get("stop"):
+                                            try:
+                                                dhcp_ranges.append((ipa.ip_address(ip_range["start"]), ipa.ip_address(ip_range["stop"])))
+                                            except ValueError:
+                                                pass
+                    except Exception:
+                        pass
+
+                    for net in networks:
+                        if net.dhcp_start and net.dhcp_end:
+                            try:
+                                dhcp_ranges.append((ipa.ip_address(net.dhcp_start), ipa.ip_address(net.dhcp_end)))
+                            except ValueError:
+                                pass
+
+                    def get_assignment(ip_str):
+                        if dhcp_ranges:
+                            try:
+                                ip_obj = ipa.ip_address(ip_str)
+                                for s, e in dhcp_ranges:
+                                    if s <= ip_obj <= e:
+                                        return AssignmentType.DHCP
+                                return AssignmentType.STATIC
+                            except ValueError:
+                                pass
+                        return AssignmentType.DHCP
+
                     for host in host_blocks:
-                        with ui.expansion(
-                            f"{host['ip']} — {host.get('hostname', '')}",
-                            icon="computer",
-                        ).classes("w-full"):
-                            if host.get("state"):
-                                ui.label(f"State: {host['state']}").classes("text-sm")
-                            if host.get("latency"):
-                                ui.label(f"Latency: {host['latency']}").classes("text-sm text-gray-500")
-                            if host.get("os"):
-                                ui.label(f"OS: {host['os']}").classes("text-sm")
-                            if host.get("ports"):
-                                columns = [
-                                    {"name": "port", "label": "Port", "field": "port", "align": "left"},
-                                    {"name": "state", "label": "State", "field": "state", "align": "center"},
-                                    {"name": "service", "label": "Service", "field": "service", "align": "left"},
-                                    {"name": "version", "label": "Version", "field": "version", "align": "left"},
-                                ]
-                                ui.table(
-                                    columns=columns, rows=host["ports"], row_key="port"
-                                ).classes("w-full").props("flat bordered dense")
+                        ip_addr = host.get("ip")
+                        if not ip_addr:
+                            continue
+                        hostname = host.get("hostname") or None
+                        os_info = host.get("os") or None
 
-                # Always show raw output in expandable section
-                with ui.expansion("Raw Output", icon="code").classes("w-full mt-2"):
-                    ui.code(output, language="text").classes("w-full text-xs")
-
-                # Save to DB button
-                if host_blocks:
-                    def save_nmap_to_db():
-                        from app.database.db import get_session_direct
-                        from app.models.ip_address import IPAddress, AssignmentType, IPStatus
-                        from app.models.network import Network
-                        from datetime import datetime, timezone
-                        import ipaddress as ipa
-
-                        db_session = get_session_direct()
-                        networks = db_session.query(Network).all()
-                        added = 0
-                        updated = 0
-                        skipped = 0
-
-                        # Fetch DHCP ranges for static/DHCP classification
-                        dhcp_ranges = []
-                        try:
-                            from app.services.unifi_service import fetch_networks_from_unifi, is_configured
-                            if is_configured():
-                                unifi_nets = fetch_networks_from_unifi()
-                                for unet in unifi_nets:
-                                    ipv4_config = unet.get("ipv4Configuration")
-                                    if isinstance(ipv4_config, dict):
-                                        dhcp_config = ipv4_config.get("dhcpConfiguration")
-                                        if isinstance(dhcp_config, dict):
-                                            ip_range = dhcp_config.get("ipAddressRange")
-                                            if isinstance(ip_range, dict) and ip_range.get("start") and ip_range.get("stop"):
-                                                try:
-                                                    start = ipa.ip_address(ip_range["start"])
-                                                    stop = ipa.ip_address(ip_range["stop"])
-                                                    dhcp_ranges.append((start, stop))
-                                                except ValueError:
-                                                    pass
-                        except Exception:
-                            pass
-
-                        # Also check locally-defined DHCP ranges on networks
+                        target_net = None
                         for net in networks:
-                            if net.dhcp_start and net.dhcp_end:
-                                try:
-                                    start = ipa.ip_address(net.dhcp_start)
-                                    stop = ipa.ip_address(net.dhcp_end)
-                                    dhcp_ranges.append((start, stop))
-                                except ValueError:
-                                    pass
-
-                        def get_assignment(ip_str):
-                            if dhcp_ranges:
-                                try:
-                                    ip_obj = ipa.ip_address(ip_str)
-                                    for s, e in dhcp_ranges:
-                                        if s <= ip_obj <= e:
-                                            return AssignmentType.DHCP
-                                    return AssignmentType.STATIC
-                                except ValueError:
-                                    pass
-                            return AssignmentType.DHCP
-
-                        for host in host_blocks:
-                            ip_addr = host.get("ip")
-                            if not ip_addr:
+                            try:
+                                if ipa.ip_address(ip_addr) in ipa.ip_network(net.cidr, strict=False):
+                                    target_net = net
+                                    break
+                            except ValueError:
                                 continue
 
-                            hostname = host.get("hostname") or None
-                            os_info = host.get("os") or None
+                        if not target_net:
+                            skipped += 1
+                            continue
 
-                            # Find matching network
-                            target_net = None
-                            for net in networks:
-                                try:
-                                    if ipa.ip_address(ip_addr) in ipa.ip_network(net.cidr, strict=False):
-                                        target_net = net
-                                        break
-                                except ValueError:
-                                    continue
-
-                            if not target_net:
-                                skipped += 1
-                                continue
-
-                            # Check for duplicates
-                            existing = db_session.query(IPAddress).filter(IPAddress.address == ip_addr).first()
-
-                            if existing:
-                                existing.last_seen = datetime.now(timezone.utc)
-                                existing.status = IPStatus.ACTIVE
-                                if hostname and not existing.hostname:
-                                    existing.hostname = hostname
-                                # Add OS/port info to notes if not already there
-                                if os_info and (not existing.notes or os_info not in existing.notes):
-                                    note_addition = f"\n**OS:** {os_info}"
-                                    if host.get("ports"):
-                                        ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
-                                        note_addition += f"\n**Open Ports:** {ports_str}"
-                                    existing.notes = (existing.notes or "") + note_addition
-                                updated += 1
-                            else:
-                                notes = ""
-                                if os_info:
-                                    notes += f"**OS:** {os_info}\n"
+                        existing = db_session.query(IPAddress).filter(IPAddress.address == ip_addr).first()
+                        if existing:
+                            existing.last_seen = datetime.now(timezone.utc)
+                            existing.status = IPStatus.ACTIVE
+                            if hostname and not existing.hostname:
+                                existing.hostname = hostname
+                            if os_info and (not existing.notes or os_info not in existing.notes):
+                                note_addition = f"\n**OS:** {os_info}"
                                 if host.get("ports"):
                                     ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
-                                    notes += f"**Open Ports:** {ports_str}\n"
+                                    note_addition += f"\n**Open Ports:** {ports_str}"
+                                existing.notes = (existing.notes or "") + note_addition
+                            updated += 1
+                        else:
+                            notes = ""
+                            if os_info:
+                                notes += f"**OS:** {os_info}\n"
+                            if host.get("ports"):
+                                ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
+                                notes += f"**Open Ports:** {ports_str}\n"
+                            new_ip = IPAddress(
+                                address=ip_addr, network_id=target_net.id,
+                                hostname=hostname, assignment_type=get_assignment(ip_addr),
+                                status=IPStatus.ACTIVE, last_seen=datetime.now(timezone.utc),
+                                source="nmap_scan", notes=notes or None,
+                            )
+                            db_session.add(new_ip)
+                            added += 1
 
-                                new_ip = IPAddress(
-                                    address=ip_addr,
-                                    network_id=target_net.id,
-                                    hostname=hostname,
-                                    assignment_type=get_assignment(ip_addr),
-                                    status=IPStatus.ACTIVE,
-                                    last_seen=datetime.now(timezone.utc),
-                                    source="nmap_scan",
-                                    notes=notes or None,
-                                )
-                                db_session.add(new_ip)
-                                added += 1
+                    db_session.commit()
+                    db_session.close()
+                    ui.notify(f"Saved: {added} added, {updated} updated, {skipped} skipped", type="positive")
 
-                        db_session.commit()
-                        db_session.close()
-                        ui.notify(
-                            f"Saved: {added} added, {updated} updated, {skipped} skipped (no network)",
-                            type="positive",
-                        )
-
-                    ui.button(
-                        "Save Results to Database", icon="save", on_click=save_nmap_to_db
-                    ).props("color=primary outline").classes("mt-3")
-            else:
-                ui.label("No output returned.").classes("text-gray-500 mt-2")
-
-    except subprocess.TimeoutExpired:
-        results_container.clear()
-        with results_container:
-            ui.label("⚠️ Scan timed out (5 minute limit).").classes("text-orange")
-    except FileNotFoundError:
-        results_container.clear()
-        with results_container:
-            ui.label("❌ nmap not found. Install with: sudo apt install nmap").classes("text-red")
-    except Exception as e:
-        results_container.clear()
-        with results_container:
-            ui.label(f"❌ Error: {e}").classes("text-red")
+                ui.button("Save Results to Database", icon="save", on_click=save_nmap_to_db).props(
+                    "color=primary outline"
+                ).classes("mt-3")
+        else:
+            ui.label("No output returned.").classes("text-gray-500 mt-2")
 
 
 def _parse_nmap_output(output: str) -> list[dict]:
