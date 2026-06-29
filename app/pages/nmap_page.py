@@ -76,6 +76,11 @@ def render_nmap():
                     ).classes("w-full mt-2")
 
                     # Additional options
+                    ui.label(
+                        "💡 Tip: Service/OS detection on a full /24 can take 15-30 min. "
+                        "Enable 'Run as root' for faster results. Try a single IP first to test."
+                    ).classes("text-xs text-gray-500 mt-2")
+
                     with ui.row().classes("gap-4 mt-2"):
                         timing_select = ui.select(
                             {"": "Default", "-T2": "Slow (T2)", "-T3": "Normal (T3)", "-T4": "Fast (T4)", "-T5": "Insane (T5)"},
@@ -213,13 +218,13 @@ def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
         try:
             result = subprocess.run(
                 cmd_parts,
-                capture_output=True, text=True, timeout=600,  # 10 min max
+                capture_output=True, text=True, timeout=1800,  # 30 min max
             )
             _render_nmap_results(result, cmd_str, results_container)
         except subprocess.TimeoutExpired:
             results_container.clear()
             with results_container:
-                ui.label("⚠️ Scan timed out (10 minute limit).").classes("text-orange")
+                ui.label("⚠️ Scan timed out (30 minute limit). Try a smaller target range or a faster scan type.").classes("text-orange")
         except FileNotFoundError:
             results_container.clear()
             with results_container:
