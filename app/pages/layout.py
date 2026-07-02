@@ -24,7 +24,21 @@ def page_layout(title: str = "Home Lab Manager"):
         with ui.row().classes("items-center gap-4"):
             ui.link("Dashboard", "/").classes("nav-link")
             ui.link("Networks", "/networks").classes("nav-link")
-            ui.link("Devices", "/devices").classes("nav-link")
+
+            # Devices dropdown
+            with ui.button("Devices", icon="devices").props("flat color=white no-caps"):
+                with ui.menu():
+                    ui.menu_item("All Devices", lambda: ui.navigate.to("/devices"))
+                    ui.separator()
+                    ui.menu_item("Ubiquiti", lambda: ui.navigate.to("/devices?category=ubiquiti"))
+                    ui.menu_item("Switches", lambda: ui.navigate.to("/devices?category=switch"))
+                    ui.menu_item("Routers / Gateways", lambda: ui.navigate.to("/devices?category=router"))
+                    ui.menu_item("Access Points", lambda: ui.navigate.to("/devices?category=ap"))
+                    ui.menu_item("IoT Devices", lambda: ui.navigate.to("/devices?category=iot"))
+                    ui.menu_item("Servers", lambda: ui.navigate.to("/devices?category=server"))
+                    ui.menu_item("Printers", lambda: ui.navigate.to("/devices?category=printer"))
+                    ui.menu_item("Other", lambda: ui.navigate.to("/devices?category=other"))
+
             ui.link("IPs", "/ips").classes("nav-link")
             ui.link("Docs", "/docs").classes("nav-link")
             ui.link("Tags", "/tags").classes("nav-link")

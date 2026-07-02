@@ -16,15 +16,41 @@ from app.utils.formatters import format_mac
 from app.pages.layout import page_layout
 
 
-def render_devices():
-    """Render the devices management page."""
+def render_devices(category: str = ""):
+    """Render the devices management page, optionally filtered by category."""
     page_layout()
 
     session = get_session()
 
+    # Category to device type mapping
+    CATEGORY_MAP = {
+        "ubiquiti": {"manufacturer": "Ubiquiti"},
+        "switch": {"types": ["Switch"]},
+        "router": {"types": ["Router", "Gateway", "Firewall"]},
+        "ap": {"types": ["Access Point"]},
+        "iot": {"types": ["IoT Device"]},
+        "server": {"types": ["Server", "NAS"]},
+        "printer": {"types": ["Printer"]},
+        "other": {"types": ["Other", "Desktop", "Laptop", "Phone", "Tablet", "UPS", "Camera"]},
+    }
+
+    category_label = "All Devices"
+    if category and category in CATEGORY_MAP:
+        labels = {
+            "ubiquiti": "Ubiquiti Devices",
+            "switch": "Switches",
+            "router": "Routers / Gateways",
+            "ap": "Access Points",
+            "iot": "IoT Devices",
+            "server": "Servers",
+            "printer": "Printers",
+            "other": "Other Devices",
+        }
+        category_label = labels.get(category, "Devices")
+
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
-            ui.label("Devices").classes("text-3xl font-bold")
+            ui.label(category_label).classes("text-3xl font-bold")
             with ui.row().classes("gap-2"):
                 ui.button("Add Device", on_click=lambda: add_dialog.open()).props(
                     "color=primary icon=add"
@@ -60,6 +86,23 @@ def render_devices():
             devices_container.clear()
             with devices_container:
                 query = session.query(Device)
+
+                # Apply category filter from URL
+                if category and category in CATEGORY_MAP:
+                    cat_config = CATEGORY_MAP[category]
+                    if "manufacturer" in cat_config:
+                        query = query.filter(Device.manufacturer.ilike(f"%{cat_config['manufacturer']}%"))
+                    elif "types" in cat_config:
+                        type_ids = [
+                            dt.id for dt in device_types
+                            if dt.name in cat_config["types"]
+                        ]
+                        if type_ids:
+                            query = query.filter(Device.device_type_id.in_(type_ids))
+                        else:
+                            query = query.filter(Device.device_type_id.is_(None))
+
+                # Apply UI filters
                 if type_filter.value and type_filter.value != 0:
                     query = query.filter(Device.device_type_id == type_filter.value)
                 if tag_filter.value and tag_filter.value != 0:

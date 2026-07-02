@@ -251,8 +251,8 @@ def network_detail_page(network_id: int):
 
 
 @ui.page("/devices")
-def devices_page():
-    render_devices()
+def devices_page(category: str = ""):
+    render_devices(category)
 
 
 @ui.page("/devices/{device_id}")
