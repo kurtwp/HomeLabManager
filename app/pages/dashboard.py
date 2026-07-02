@@ -45,11 +45,15 @@ def render_dashboard():
         ui.label("Dashboard").classes("text-3xl font-bold mb-4")
 
         # Stats cards
+        unifi_devices = session.query(Device).filter(Device.manufacturer == "Ubiquiti").count()
+        other_devices = total_devices - unifi_devices
+
         with ui.row().classes("w-full gap-4 flex-wrap"):
             _stat_card("Networks", str(total_networks), "lan", "blue")
             _stat_card("IP Addresses", str(total_ips), "tag", "green")
             _stat_card("Active Hosts", str(active_clients), "wifi", "orange")
-            _stat_card("Devices", str(total_devices), "devices", "purple")
+            _stat_card("UniFi Devices", str(unifi_devices), "router", "purple")
+            _stat_card("Other Devices", str(other_devices), "devices_other", "teal")
 
         # Source breakdown
         if source_counts:
