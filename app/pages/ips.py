@@ -281,15 +281,36 @@ def render_ip_detail(ip_id: int):
                         # Update existing device's type
                         ip.device.device_type_id = new_type_id
                     else:
-                        # Create a new device record linked to this IP
-                        new_dev = Device(
-                            name=ip.hostname or ip.address,
-                            device_type_id=new_type_id,
-                            mac_address=ip.mac_address,
-                        )
-                        session.add(new_dev)
-                        session.flush()
-                        ip.device_id = new_dev.id
+                        # Check if a device with this name or MAC already exists
+                        existing_dev = None
+                        if ip.mac_address:
+                            mac_norm = ip.mac_address.replace(":", "").replace("-", "").upper()
+                            for d in session.query(Device).all():
+                                if d.mac_address:
+                                    d_mac = d.mac_address.replace(":", "").replace("-", "").upper()
+                                    if d_mac == mac_norm:
+                                        existing_dev = d
+                                        break
+                        if not existing_dev and ip.hostname:
+                            existing_dev = session.query(Device).filter(
+                                Device.name == ip.hostname
+                            ).first()
+
+                        if existing_dev:
+                            # Link to existing device and update type
+                            existing_dev.device_type_id = new_type_id
+                            ip.device_id = existing_dev.id
+                        else:
+                            # Create a new device record
+                            new_dev = Device(
+                                name=ip.hostname or ip.address,
+                                device_type_id=new_type_id,
+                                mac_address=ip.mac_address,
+                            )
+                            session.add(new_dev)
+                            session.flush()
+                            ip.device_id = new_dev.id
+
                     session.commit()
                     ui.notify("Device type saved!", type="positive")
 
