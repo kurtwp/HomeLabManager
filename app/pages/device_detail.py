@@ -37,6 +37,10 @@ def render_device_detail(device_id: int):
 
         ui.separator().classes("my-4")
 
+        # Health stats for Ubiquiti devices
+        if device.manufacturer and "ubiquiti" in device.manufacturer.lower():
+            _render_unifi_health(device)
+
         with ui.row().classes("w-full gap-4 flex-wrap"):
             # Info panel
             with ui.card().classes("w-80"):
@@ -116,3 +120,63 @@ def render_device_detail(device_id: int):
         render_custom_fields_for_entity(session, "device", device.id)
 
     session.close()
+
+
+def _render_unifi_health(device):
+    """Render UniFi device health stats (CPU, RAM, temp, uptime)."""
+    from app.services.unifi_device_stats import get_device_health
+
+    if not device.mac_address:
+        return
+
+    health = get_device_health(device.mac_address)
+    if not health:
+        return
+
+    with ui.card().classes("w-full mb-4"):
+        ui.label("Device Health").classes("text-lg font-semibold mb-3")
+
+        with ui.row().classes("w-full gap-6 flex-wrap"):
+            # Uptime
+            with ui.column().classes("items-center gap-0"):
+                ui.icon("schedule").classes("text-2xl text-green")
+                ui.label(health["uptime_str"]).classes("text-lg font-bold")
+                ui.label("Uptime").classes("text-xs text-gray-500")
+
+            # CPU
+            with ui.column().classes("items-center gap-0 min-w-[100px]"):
+                cpu = health["cpu_percent"]
+                cpu_color = "green" if cpu < 50 else "orange" if cpu < 80 else "red"
+                ui.icon("memory").classes(f"text-2xl text-{cpu_color}")
+                ui.label(f"{cpu:.1f}%").classes("text-lg font-bold")
+                ui.label("CPU").classes("text-xs text-gray-500")
+                ui.linear_progress(value=cpu / 100, show_value=False).classes("w-24").props(
+                    f'color="{cpu_color}"'
+                )
+
+            # Memory
+            with ui.column().classes("items-center gap-0 min-w-[100px]"):
+                mem = health["mem_percent"]
+                mem_color = "green" if mem < 60 else "orange" if mem < 85 else "red"
+                ui.icon("storage").classes(f"text-2xl text-{mem_color}")
+                ui.label(f"{mem:.1f}%").classes("text-lg font-bold")
+                ui.label(f"RAM ({health['mem_used_mb']}/{health['mem_total_mb']} MB)").classes("text-xs text-gray-500")
+                ui.linear_progress(value=mem / 100, show_value=False).classes("w-24").props(
+                    f'color="{mem_color}"'
+                )
+
+            # Load Average
+            with ui.column().classes("items-center gap-0"):
+                ui.icon("speed").classes("text-2xl text-blue")
+                ui.label(f"{health['load_1']:.2f}").classes("text-lg font-bold")
+                ui.label(f"Load (1/5/15: {health['load_1']:.1f}/{health['load_5']:.1f}/{health['load_15']:.1f})").classes("text-xs text-gray-500")
+
+            # Temperatures
+            if health["temperatures"]:
+                for temp in health["temperatures"]:
+                    temp_val = temp.get("value", 0)
+                    temp_color = "green" if temp_val < 60 else "orange" if temp_val < 80 else "red"
+                    with ui.column().classes("items-center gap-0"):
+                        ui.icon("thermostat").classes(f"text-2xl text-{temp_color}")
+                        ui.label(f"{temp_val:.1f}°C").classes("text-lg font-bold")
+                        ui.label(temp.get("name", "Temp")).classes("text-xs text-gray-500")
