@@ -376,19 +376,24 @@ def _render_nmap_results(result, cmd_str, results_container):
                             if hostname and not existing.hostname:
                                 existing.hostname = hostname
                             if os_info and (not existing.notes or os_info not in existing.notes):
-                                note_addition = f"\n**OS:** {os_info}"
+                                note_addition = f"\n\n---\n### Nmap Scan Results\n\n"
+                                note_addition += f"**OS:** {os_info}\n\n"
                                 if host.get("ports"):
-                                    ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
-                                    note_addition += f"\n**Open Ports:** {ports_str}"
+                                    note_addition += "**Open Ports:**\n\n"
+                                    note_addition += "| Port | Service |\n|------|--------|\n"
+                                    for p in host["ports"][:15]:
+                                        note_addition += f"| {p['port']} | {p['service']} {p.get('version', '')} |\n"
                                 existing.notes = (existing.notes or "") + note_addition
                             updated += 1
                         else:
-                            notes = ""
+                            notes = "### Nmap Scan Results\n\n"
                             if os_info:
-                                notes += f"**OS:** {os_info}\n"
+                                notes += f"**OS:** {os_info}\n\n"
                             if host.get("ports"):
-                                ports_str = ", ".join(p["port"] + " " + p["service"] for p in host["ports"][:10])
-                                notes += f"**Open Ports:** {ports_str}\n"
+                                notes += "**Open Ports:**\n\n"
+                                notes += "| Port | Service |\n|------|--------|\n"
+                                for p in host["ports"][:15]:
+                                    notes += f"| {p['port']} | {p['service']} {p.get('version', '')} |\n"
                             new_ip = IPAddress(
                                 address=ip_addr, network_id=target_net.id,
                                 hostname=hostname, assignment_type=get_assignment(ip_addr),
