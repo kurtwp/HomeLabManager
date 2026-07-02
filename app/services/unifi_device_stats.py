@@ -115,4 +115,5 @@ def _extract_health(device: dict) -> dict:
         "load_5": float(sys_detail.get("loadavg_5", 0)),
         "load_15": float(sys_detail.get("loadavg_15", 0)),
         "temperatures": temperatures,
+        "storage": device.get("storage") or [],
     }

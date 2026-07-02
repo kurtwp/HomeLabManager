@@ -180,3 +180,28 @@ def _render_unifi_health(device):
                         ui.icon("thermostat").classes(f"text-2xl text-{temp_color}")
                         ui.label(f"{temp_val:.1f}°C").classes("text-lg font-bold")
                         ui.label(temp.get("name", "Temp")).classes("text-xs text-gray-500")
+
+        # Storage
+        if health.get("storage"):
+            ui.separator().classes("my-3")
+            ui.label("Storage").classes("text-md font-semibold mb-2")
+            with ui.row().classes("w-full gap-4 flex-wrap"):
+                for vol in health["storage"]:
+                    size_gb = vol.get("size", 0) / 1024 / 1024 / 1024
+                    used_gb = vol.get("used", 0) / 1024 / 1024 / 1024
+                    pct = (used_gb / size_gb * 100) if size_gb > 0 else 0
+                    disk_color = "green" if pct < 70 else "orange" if pct < 90 else "red"
+
+                    with ui.column().classes("min-w-[150px]"):
+                        with ui.row().classes("items-center gap-1"):
+                            ui.icon("hard_drive" if "emmc" not in vol.get("type", "").lower() else "sd_card").classes("text-gray-500")
+                            ui.label(vol.get("name", vol.get("mount_point", "—"))).classes("font-semibold text-sm")
+                        ui.linear_progress(value=pct / 100, show_value=False).classes("w-full").props(
+                            f'color="{disk_color}"'
+                        )
+                        ui.label(
+                            f"{used_gb:.1f} / {size_gb:.1f} GB ({pct:.0f}%)"
+                        ).classes("text-xs text-gray-500")
+                        ui.label(
+                            f"Mount: {vol.get('mount_point', '—')} · Type: {vol.get('type', '—')}"
+                        ).classes("text-xs text-gray-400")
