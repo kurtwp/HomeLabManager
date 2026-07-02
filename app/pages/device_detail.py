@@ -201,23 +201,41 @@ def _render_unifi_health(device):
             # Per-port table
             active_ports = [p for p in health.get("poe_ports", []) if p["active"]]
             if active_ports:
+                # Look up device types from DB
+                from app.models.device import Device as DeviceModel
+                from app.database.db import get_session_direct
+                db = get_session_direct()
+
                 columns = [
                     {"name": "port", "label": "Port", "field": "port", "align": "center"},
+                    {"name": "device", "label": "Connected Device", "field": "device", "align": "left"},
+                    {"name": "type", "label": "Type", "field": "type", "align": "center"},
                     {"name": "power", "label": "Power (W)", "field": "power", "align": "right"},
                     {"name": "voltage", "label": "Voltage (V)", "field": "voltage", "align": "right"},
                     {"name": "current", "label": "Current (mA)", "field": "current", "align": "right"},
                     {"name": "class", "label": "Class", "field": "class", "align": "center"},
                 ]
-                rows = [
-                    {
+                rows = []
+                for p in active_ports:
+                    # Try to find device type from DB
+                    dev_type = "—"
+                    dev_name = p.get("connected_device") or p.get("name", "—")
+                    if dev_name and dev_name != "—":
+                        db_device = db.query(DeviceModel).filter(DeviceModel.name == dev_name).first()
+                        if db_device and db_device.device_type:
+                            dev_type = db_device.device_type.name
+
+                    rows.append({
                         "port": p["port"],
+                        "device": dev_name,
+                        "type": dev_type,
                         "power": f"{p['power_w']:.2f}",
                         "voltage": f"{p['voltage']:.1f}",
                         "current": f"{p['current_ma']:.0f}",
                         "class": p["class"],
-                    }
-                    for p in active_ports
-                ]
+                    })
+
+                db.close()
                 ui.table(columns=columns, rows=rows, row_key="port").classes(
                     "w-full"
                 ).props("flat bordered dense")

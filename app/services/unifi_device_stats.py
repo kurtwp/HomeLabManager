@@ -108,8 +108,18 @@ def _extract_health(device: dict) -> dict:
     poe_ports = []
     for port in device.get("port_table", []):
         if port.get("port_poe") and port.get("poe_enable"):
+            port_name = port.get("name", f"Port {port.get('port_idx')}")
+            # Extract connected device name from port name (e.g. "theDesk-P1" -> "theDesk")
+            connected_device = ""
+            if port_name and "-P" in port_name:
+                connected_device = port_name.split("-P")[0]
+            elif port_name and port_name.startswith("Port"):
+                connected_device = ""
+
             poe_ports.append({
                 "port": port.get("port_idx"),
+                "name": port_name,
+                "connected_device": connected_device,
                 "power_w": float(port.get("poe_power", 0)),
                 "voltage": float(port.get("poe_voltage", 0)),
                 "current_ma": float(port.get("poe_current", 0)),
