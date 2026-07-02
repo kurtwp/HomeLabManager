@@ -25,28 +25,25 @@ def render_devices(category: str = ""):
     # Category to device type mapping
     CATEGORY_MAP = {
         "ubiquiti": {"manufacturer": "Ubiquiti"},
-        "switch": {"types": ["Switch"]},
-        "router": {"types": ["Router", "Gateway", "Firewall"]},
-        "ap": {"types": ["Access Point"]},
-        "iot": {"types": ["IoT Device"]},
-        "server": {"types": ["Server", "NAS"]},
-        "printer": {"types": ["Printer"]},
-        "other": {"types": ["Other", "Desktop", "Laptop", "Phone", "Tablet", "UPS", "Camera"]},
+        "unclassified": {"untyped": True},
     }
 
     category_label = "All Devices"
-    if category and category in CATEGORY_MAP:
-        labels = {
-            "ubiquiti": "Ubiquiti Devices",
-            "switch": "Switches",
-            "router": "Routers / Gateways",
-            "ap": "Access Points",
-            "iot": "IoT Devices",
-            "server": "Servers",
-            "printer": "Printers",
-            "other": "Other Devices",
-        }
-        category_label = labels.get(category, "Devices")
+    if category:
+        if category.startswith("type_"):
+            # Direct type ID filter
+            try:
+                type_id = int(category.replace("type_", ""))
+                from app.models.device import DeviceType as DT
+                dt = session.query(DT).filter(DT.id == type_id).first()
+                if dt:
+                    category_label = dt.name
+            except ValueError:
+                pass
+        elif category == "unclassified":
+            category_label = "Unclassified Devices"
+        elif category in CATEGORY_MAP:
+            category_label = category.title()
 
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
@@ -88,18 +85,20 @@ def render_devices(category: str = ""):
                 query = session.query(Device)
 
                 # Apply category filter from URL
-                if category and category in CATEGORY_MAP:
-                    cat_config = CATEGORY_MAP[category]
-                    if "manufacturer" in cat_config:
-                        query = query.filter(Device.manufacturer.ilike(f"%{cat_config['manufacturer']}%"))
-                    elif "types" in cat_config:
-                        type_ids = [
-                            dt.id for dt in device_types
-                            if dt.name in cat_config["types"]
-                        ]
-                        if type_ids:
-                            query = query.filter(Device.device_type_id.in_(type_ids))
-                        else:
+                if category:
+                    if category.startswith("type_"):
+                        try:
+                            type_id = int(category.replace("type_", ""))
+                            query = query.filter(Device.device_type_id == type_id)
+                        except ValueError:
+                            pass
+                    elif category == "unclassified":
+                        query = query.filter(Device.device_type_id.is_(None))
+                    elif category in CATEGORY_MAP:
+                        cat_config = CATEGORY_MAP[category]
+                        if "manufacturer" in cat_config:
+                            query = query.filter(Device.manufacturer.ilike(f"%{cat_config['manufacturer']}%"))
+                        elif "untyped" in cat_config:
                             query = query.filter(Device.device_type_id.is_(None))
 
                 # Apply UI filters

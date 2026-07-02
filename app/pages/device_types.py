@@ -134,15 +134,18 @@ def render_device_types():
         edit_desc = ui.input("Description").classes("w-full")
 
         def save_edit():
-            dt = session.query(DeviceType).filter(DeviceType.id == edit_dialog.dt_id).first()
+            from app.database.db import get_session_direct
+            s = get_session_direct()
+            dt = s.query(DeviceType).filter(DeviceType.id == edit_dialog.dt_id).first()
             if dt:
                 dt.name = edit_name.value.strip()
                 dt.icon = edit_icon.value.strip() or None
                 dt.description = edit_desc.value.strip() or None
-                session.commit()
+                s.commit()
                 ui.notify("Updated!", type="positive")
                 edit_dialog.close()
                 refresh_types()
+            s.close()
 
         with ui.row().classes("justify-end gap-2 mt-3"):
             ui.button("Cancel", on_click=edit_dialog.close).props("flat")
