@@ -116,11 +116,11 @@ def render_devices(category: str = ""):
                     return
 
                 for d in devices:
-                    with ui.card().classes("w-full cursor-pointer").on(
-                        "click", lambda dev=d: ui.navigate.to(f"/devices/{dev.id}")
-                    ):
+                    with ui.card().classes("w-full"):
                         with ui.row().classes("w-full items-center justify-between"):
-                            with ui.row().classes("items-center gap-3"):
+                            with ui.row().classes("items-center gap-3 cursor-pointer flex-1").on(
+                                "click", lambda dev=d: ui.navigate.to(f"/devices/{dev.id}")
+                            ):
                                 # Device type icon
                                 icon_name = d.device_type.icon if d.device_type and d.device_type.icon else "devices_other"
                                 ui.icon(icon_name).classes("text-xl text-gray-600")
@@ -136,7 +136,25 @@ def render_devices(category: str = ""):
                                         f'font-weight:500;">{tag.name}</span>'
                                     )
 
-                            with ui.row().classes("items-center gap-4"):
+                            with ui.row().classes("items-center gap-2"):
+                                # Inline type selector
+                                dt_options_inline = {0: "— Set Type —"}
+                                dt_options_inline.update({dt.id: dt.name for dt in device_types})
+                                current_type_id = d.device_type_id or 0
+
+                                type_sel = ui.select(
+                                    dt_options_inline,
+                                    value=current_type_id,
+                                ).props("dense borderless").classes("w-36 text-xs")
+
+                                def on_type_change(dev=d, sel=type_sel):
+                                    new_type = sel.value if sel.value != 0 else None
+                                    dev.device_type_id = new_type
+                                    session.commit()
+                                    ui.notify(f"Type updated", type="positive")
+
+                                type_sel.on("update:model-value", lambda e, dev=d, sel=type_sel: on_type_change(dev, sel))
+
                                 info_parts = []
                                 if d.manufacturer:
                                     info_parts.append(d.manufacturer)
@@ -145,10 +163,6 @@ def render_devices(category: str = ""):
                                 if info_parts:
                                     ui.label(" · ".join(info_parts)).classes(
                                         "text-sm text-gray-400"
-                                    )
-                                if d.mac_address:
-                                    ui.label(format_mac(d.mac_address)).classes(
-                                        "text-xs font-mono text-gray-400"
                                     )
                                 ui.badge(f"{len(d.ip_addresses)} IPs").props(
                                     "color=blue outline"
