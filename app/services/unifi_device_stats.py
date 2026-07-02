@@ -108,7 +108,7 @@ def _extract_health(device: dict) -> dict:
     poe_ports = []
 
     # Build a map of which device connects to which port on this device
-    # by checking all devices' uplink_remote_port
+    # Source 1: Check all devices' uplink_remote_port (for UniFi-managed devices)
     port_connections = {}  # port_idx -> device name
     all_stats = fetch_device_stats()
     device_mac = (device.get("mac") or "").lower()
@@ -118,6 +118,26 @@ def _extract_health(device: dict) -> dict:
             remote_port = uplink.get("uplink_remote_port")
             if remote_port:
                 port_connections[int(remote_port)] = other_dev.get("name") or "Unknown"
+
+    # Source 2: Check client stats for non-UniFi devices connected to this switch
+    try:
+        import httpx as _httpx
+        from config import UNIFI_API_KEY as _key, UNIFI_BASE_URL as _url
+        _headers = {"X-API-KEY": _key, "Accept": "application/json"}
+        _r = _httpx.get(
+            f"{_url}/proxy/network/api/s/default/stat/sta",
+            headers=_headers, verify=False, timeout=10,
+        )
+        if _r.status_code == 200:
+            for client in _r.json().get("data", []):
+                sw_mac = (client.get("sw_mac") or "").lower().replace(":", "")
+                if sw_mac == device_mac.replace(":", ""):
+                    sw_port = client.get("sw_port")
+                    if sw_port and int(sw_port) not in port_connections:
+                        client_name = client.get("name") or client.get("hostname") or client.get("mac", "")
+                        port_connections[int(sw_port)] = client_name
+    except Exception:
+        pass
 
     for port in device.get("port_table", []):
         if port.get("port_poe") and port.get("poe_enable"):
