@@ -8,6 +8,9 @@ def page_layout(title: str = "Home Lab Manager"):
     # Enable dark mode by default
     dark = ui.dark_mode(True)
 
+    # Prevent white flash on page load by setting dark background immediately
+    ui.add_head_html('<style>body { background-color: #121212 !important; }</style>')
+
     ui.add_css("""
         .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; }
         .nav-link:hover { opacity: 0.8; }
