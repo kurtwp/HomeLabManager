@@ -38,6 +38,8 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Servers", lambda: ui.navigate.to("/devices?category=server"))
                     ui.menu_item("Printers", lambda: ui.navigate.to("/devices?category=printer"))
                     ui.menu_item("Other", lambda: ui.navigate.to("/devices?category=other"))
+                    ui.separator()
+                    ui.menu_item("Manage Device Types", lambda: ui.navigate.to("/device-types"))
 
             ui.link("IPs", "/ips").classes("nav-link")
             ui.link("Docs", "/docs").classes("nav-link")

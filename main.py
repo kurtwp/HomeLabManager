@@ -255,6 +255,12 @@ def devices_page(category: str = ""):
     render_devices(category)
 
 
+@ui.page("/device-types")
+def device_types_page():
+    from app.pages.device_types import render_device_types
+    render_device_types()
+
+
 @ui.page("/devices/{device_id}")
 def device_detail_page(device_id: int):
     from app.pages.device_detail import render_device_detail
