@@ -275,43 +275,55 @@ def render_ip_detail(ip_id: int):
                 ).classes("w-full")
 
                 def save_device_type():
+                    # Use a fresh session for the save operation
+                    from app.database.db import get_session_direct
+                    save_session = get_session_direct()
+
                     new_type_id = device_type_select.value if device_type_select.value != 0 else None
 
-                    if ip.device:
+                    # Re-fetch the IP in this session
+                    save_ip = save_session.query(IPAddress).filter(IPAddress.id == ip.id).first()
+                    if not save_ip:
+                        ui.notify("IP not found", type="negative")
+                        save_session.close()
+                        return
+
+                    if save_ip.device_id:
                         # Update existing device's type
-                        ip.device.device_type_id = new_type_id
+                        dev = save_session.query(Device).filter(Device.id == save_ip.device_id).first()
+                        if dev:
+                            dev.device_type_id = new_type_id
                     else:
-                        # Check if a device with this name or MAC already exists
+                        # Check if a device with this MAC or hostname already exists
                         existing_dev = None
-                        if ip.mac_address:
-                            mac_norm = ip.mac_address.replace(":", "").replace("-", "").upper()
-                            for d in session.query(Device).all():
+                        if save_ip.mac_address:
+                            mac_norm = save_ip.mac_address.replace(":", "").replace("-", "").upper()
+                            for d in save_session.query(Device).all():
                                 if d.mac_address:
                                     d_mac = d.mac_address.replace(":", "").replace("-", "").upper()
                                     if d_mac == mac_norm:
                                         existing_dev = d
                                         break
-                        if not existing_dev and ip.hostname:
-                            existing_dev = session.query(Device).filter(
-                                Device.name == ip.hostname
+                        if not existing_dev and save_ip.hostname:
+                            existing_dev = save_session.query(Device).filter(
+                                Device.name == save_ip.hostname
                             ).first()
 
                         if existing_dev:
-                            # Link to existing device and update type
                             existing_dev.device_type_id = new_type_id
-                            ip.device_id = existing_dev.id
+                            save_ip.device_id = existing_dev.id
                         else:
-                            # Create a new device record
                             new_dev = Device(
-                                name=ip.hostname or ip.address,
+                                name=save_ip.hostname or save_ip.address,
                                 device_type_id=new_type_id,
-                                mac_address=ip.mac_address,
+                                mac_address=save_ip.mac_address,
                             )
-                            session.add(new_dev)
-                            session.flush()
-                            ip.device_id = new_dev.id
+                            save_session.add(new_dev)
+                            save_session.flush()
+                            save_ip.device_id = new_dev.id
 
-                    session.commit()
+                    save_session.commit()
+                    save_session.close()
                     ui.notify("Device type saved!", type="positive")
 
                 ui.button("Save Type", on_click=save_device_type).props(
