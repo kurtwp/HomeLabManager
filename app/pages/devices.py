@@ -137,6 +137,13 @@ def render_devices(category: str = ""):
                                     )
 
                             with ui.row().classes("items-center gap-4"):
+                                # Show IP addresses
+                                if d.ip_addresses:
+                                    for ip_addr in d.ip_addresses[:2]:
+                                        ui.label(ip_addr.address).classes("font-mono text-sm text-gray-400")
+                                    if len(d.ip_addresses) > 2:
+                                        ui.label(f"+{len(d.ip_addresses) - 2} more").classes("text-xs text-gray-500")
+
                                 info_parts = []
                                 if d.manufacturer:
                                     info_parts.append(d.manufacturer)
