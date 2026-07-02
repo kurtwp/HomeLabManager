@@ -122,11 +122,22 @@ def _extract_health(device: dict) -> dict:
     for port in device.get("port_table", []):
         if port.get("port_poe") and port.get("poe_enable"):
             port_idx = port.get("port_idx")
+            port_name = port.get("name", "")
+
+            # Determine connected device: uplink data > port description > generic
             connected_device = port_connections.get(port_idx, "")
+            if not connected_device:
+                # Fall back to port description (strip -P suffix if present)
+                if port_name and "-P" in port_name:
+                    connected_device = port_name.split("-P")[0]
+                elif port_name and not port_name.startswith("Port"):
+                    connected_device = port_name
+                else:
+                    connected_device = f"Port {port_idx}"
 
             poe_ports.append({
                 "port": port_idx,
-                "name": port.get("name", f"Port {port_idx}"),
+                "name": port_name or f"Port {port_idx}",
                 "connected_device": connected_device,
                 "power_w": float(port.get("poe_power", 0)),
                 "voltage": float(port.get("poe_voltage", 0)),
