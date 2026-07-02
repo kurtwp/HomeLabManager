@@ -100,6 +100,24 @@ def _extract_health(device: dict) -> dict:
     # Temperatures
     temperatures = device.get("temperatures") or []
 
+    # PoE power data
+    total_max_power = device.get("total_max_power") or device.get("total_max_effective_power") or 0
+    total_used_power = device.get("total_used_power") or 0
+
+    # Per-port PoE details
+    poe_ports = []
+    for port in device.get("port_table", []):
+        if port.get("port_poe") and port.get("poe_enable"):
+            poe_ports.append({
+                "port": port.get("port_idx"),
+                "power_w": float(port.get("poe_power", 0)),
+                "voltage": float(port.get("poe_voltage", 0)),
+                "current_ma": float(port.get("poe_current", 0)),
+                "class": port.get("poe_class", "—"),
+                "mode": port.get("poe_mode", "—"),
+                "active": port.get("poe_good", False),
+            })
+
     return {
         "name": device.get("name") or device.get("hostname") or "—",
         "model": device.get("model") or "—",
@@ -115,5 +133,7 @@ def _extract_health(device: dict) -> dict:
         "load_5": float(sys_detail.get("loadavg_5", 0)),
         "load_15": float(sys_detail.get("loadavg_15", 0)),
         "temperatures": temperatures,
-        "storage": device.get("storage") or [],
+        "poe_max_power": float(total_max_power),
+        "poe_used_power": float(total_used_power),
+        "poe_ports": poe_ports,
     }
