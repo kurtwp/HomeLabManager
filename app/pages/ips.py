@@ -254,6 +254,49 @@ def render_ip_detail(ip_id: int):
                 if ip.device:
                     ui.label(f"Device: {ip.device.name}")
 
+                # Device type selector
+                ui.separator().classes("my-2")
+                ui.label("Device Type").classes("text-sm font-semibold")
+
+                from app.models.device import Device, DeviceType
+                from app.services.device_service import get_all_device_types
+
+                all_types = get_all_device_types(session)
+                type_options = {0: "— Not Set —"}
+                type_options.update({dt.id: dt.name for dt in all_types})
+
+                # Get current type from linked device, or None
+                current_type_id = 0
+                if ip.device and ip.device.device_type_id:
+                    current_type_id = ip.device.device_type_id
+
+                device_type_select = ui.select(
+                    type_options, value=current_type_id, label="Type"
+                ).classes("w-full")
+
+                def save_device_type():
+                    new_type_id = device_type_select.value if device_type_select.value != 0 else None
+
+                    if ip.device:
+                        # Update existing device's type
+                        ip.device.device_type_id = new_type_id
+                    else:
+                        # Create a new device record linked to this IP
+                        new_dev = Device(
+                            name=ip.hostname or ip.address,
+                            device_type_id=new_type_id,
+                            mac_address=ip.mac_address,
+                        )
+                        session.add(new_dev)
+                        session.flush()
+                        ip.device_id = new_dev.id
+                    session.commit()
+                    ui.notify("Device type saved!", type="positive")
+
+                ui.button("Save Type", on_click=save_device_type).props(
+                    "color=primary size=sm"
+                ).classes("mt-1")
+
             # Notes editor
             with ui.card().classes("flex-1 min-w-[400px]"):
                 ui.label("Notes (Markdown)").classes("text-lg font-semibold mb-2")

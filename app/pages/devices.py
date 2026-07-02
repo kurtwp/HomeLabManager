@@ -136,25 +136,7 @@ def render_devices(category: str = ""):
                                         f'font-weight:500;">{tag.name}</span>'
                                     )
 
-                            with ui.row().classes("items-center gap-2"):
-                                # Inline type selector
-                                dt_options_inline = {0: "— Set Type —"}
-                                dt_options_inline.update({dt.id: dt.name for dt in device_types})
-                                current_type_id = d.device_type_id or 0
-
-                                type_sel = ui.select(
-                                    dt_options_inline,
-                                    value=current_type_id,
-                                ).props("dense borderless").classes("w-36 text-xs")
-
-                                def on_type_change(dev=d, sel=type_sel):
-                                    new_type = sel.value if sel.value != 0 else None
-                                    dev.device_type_id = new_type
-                                    session.commit()
-                                    ui.notify(f"Type updated", type="positive")
-
-                                type_sel.on("update:model-value", lambda e, dev=d, sel=type_sel: on_type_change(dev, sel))
-
+                            with ui.row().classes("items-center gap-4"):
                                 info_parts = []
                                 if d.manufacturer:
                                     info_parts.append(d.manufacturer)
