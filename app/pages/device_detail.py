@@ -68,7 +68,7 @@ def render_device_detail(device_id: int):
                     edit_tab = ui.tab("Edit")
                     preview_tab = ui.tab("Preview")
 
-                with ui.tab_panels(tabs, value=edit_tab).classes("w-full"):
+                with ui.tab_panels(tabs, value=preview_tab).classes("w-full"):
                     with ui.tab_panel(edit_tab):
                         notes_editor = ui.textarea(
                             value=device.notes or ""
