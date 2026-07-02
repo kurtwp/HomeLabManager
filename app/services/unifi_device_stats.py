@@ -106,19 +106,27 @@ def _extract_health(device: dict) -> dict:
 
     # Per-port PoE details
     poe_ports = []
+
+    # Build a map of which device connects to which port on this device
+    # by checking all devices' uplink_remote_port
+    port_connections = {}  # port_idx -> device name
+    all_stats = fetch_device_stats()
+    device_mac = (device.get("mac") or "").lower()
+    for other_dev in all_stats:
+        uplink = other_dev.get("uplink", {})
+        if uplink.get("uplink_mac", "").lower().replace(":", "") == device_mac.replace(":", ""):
+            remote_port = uplink.get("uplink_remote_port")
+            if remote_port:
+                port_connections[int(remote_port)] = other_dev.get("name") or "Unknown"
+
     for port in device.get("port_table", []):
         if port.get("port_poe") and port.get("poe_enable"):
-            port_name = port.get("name", f"Port {port.get('port_idx')}")
-            # Extract connected device name from port name (e.g. "theDesk-P1" -> "theDesk")
-            connected_device = ""
-            if port_name and "-P" in port_name:
-                connected_device = port_name.split("-P")[0]
-            elif port_name and port_name.startswith("Port"):
-                connected_device = ""
+            port_idx = port.get("port_idx")
+            connected_device = port_connections.get(port_idx, "")
 
             poe_ports.append({
-                "port": port.get("port_idx"),
-                "name": port_name,
+                "port": port_idx,
+                "name": port.get("name", f"Port {port_idx}"),
                 "connected_device": connected_device,
                 "power_w": float(port.get("poe_power", 0)),
                 "voltage": float(port.get("poe_voltage", 0)),
