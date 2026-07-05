@@ -24,8 +24,11 @@ def page_layout(title: str = "Home Lab Manager"):
     # After page connects, apply the stored preference
     ui.run_javascript('''
         const isDark = localStorage.getItem("darkMode") !== "false";
-        return isDark;
-    ''', respond=False)
+        if (!isDark) {
+            document.body.classList.remove("body--dark");
+            document.querySelector(".q-dark")?.classList.remove("q-dark");
+        }
+    ''')
 
     ui.add_css("""
         .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; }
