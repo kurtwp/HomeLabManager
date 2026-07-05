@@ -5,30 +5,8 @@ from nicegui import ui
 
 def page_layout(title: str = "Home Lab Manager"):
     """Create the shared navigation layout. Call at the top of each page function."""
-    # Dark mode — use JavaScript to read stored preference
+    # Force dark mode
     dark = ui.dark_mode(True)
-
-    # Script runs on client to apply stored preference and prevent flash
-    ui.add_head_html('''<script>
-        (function() {
-            var pref = localStorage.getItem("darkMode");
-            if (pref === "false") {
-                document.documentElement.classList.remove("body--dark");
-                document.documentElement.style.backgroundColor = "";
-            } else {
-                document.documentElement.style.backgroundColor = "#121212";
-            }
-        })();
-    </script>''')
-
-    # After page connects, apply the stored preference
-    ui.run_javascript('''
-        const isDark = localStorage.getItem("darkMode") !== "false";
-        if (!isDark) {
-            document.body.classList.remove("body--dark");
-            document.querySelector(".q-dark")?.classList.remove("q-dark");
-        }
-    ''')
 
     ui.add_css("""
         .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; }
@@ -119,9 +97,6 @@ def page_layout(title: str = "Home Lab Manager"):
             # Dark/Light mode toggle
             def toggle_dark():
                 dark.toggle()
-                ui.run_javascript(
-                    'localStorage.setItem("darkMode", document.body.classList.contains("body--dark") ? "true" : "false")'
-                )
 
             ui.button(
                 icon="dark_mode",
