@@ -9,6 +9,7 @@ from app.models.changelog import Changelog
 from app.models.scan_log import ScanLog
 from app.models.custom_field import CustomFieldDefinition, CustomFieldValue
 from app.models.saved_search import SavedSearch
+from app.models.note import Note
 
 __all__ = [
     "Network",
@@ -25,4 +26,5 @@ __all__ = [
     "CustomFieldDefinition",
     "CustomFieldValue",
     "SavedSearch",
+    "Note",
 ]
