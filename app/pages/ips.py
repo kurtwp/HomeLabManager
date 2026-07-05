@@ -52,7 +52,11 @@ def render_ips():
             tag_filter = ui.select(
                 tag_options, value=0, label="Tag"
             ).classes("w-44")
-            ui.button("Filter", on_click=lambda: refresh_ips()).props("flat")
+
+            # Auto-refresh on any filter change
+            network_filter.on("update:model-value", lambda: refresh_ips())
+            status_filter.on("update:model-value", lambda: refresh_ips())
+            tag_filter.on("update:model-value", lambda: refresh_ips())
 
         # IP list
         ip_container = ui.column().classes("w-full mt-4 gap-1")
