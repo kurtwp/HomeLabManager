@@ -335,7 +335,8 @@ def render_ip_detail(ip_id: int):
                 from app.pages.notes_component import render_notes
                 render_notes(session, "ip", ip.id)
 
-        # Tags
-        render_tag_assignment(session, ip)
+        # Tags — constrained width
+        with ui.column().classes("w-80"):
+            render_tag_assignment(session, ip)
 
     session.close()
