@@ -330,30 +330,10 @@ def render_ip_detail(ip_id: int):
                     "color=primary size=sm"
                 ).classes("mt-1")
 
-            # Notes editor
-            with ui.card().classes("flex-1 min-w-[400px]"):
-                ui.label("Notes (Markdown)").classes("text-lg font-semibold mb-2")
-
-                with ui.tabs().classes("w-full") as tabs:
-                    edit_tab = ui.tab("Edit")
-                    preview_tab = ui.tab("Preview")
-
-                with ui.tab_panels(tabs, value=preview_tab).classes("w-full"):
-                    with ui.tab_panel(edit_tab):
-                        notes_editor = ui.textarea(
-                            value=ip.notes or ""
-                        ).classes("w-full").props('rows="12"')
-
-                        def save_notes():
-                            update_ip(session, ip.id, notes=notes_editor.value)
-                            ui.notify("Notes saved!", type="positive")
-
-                        ui.button("Save Notes", on_click=save_notes).props(
-                            "color=primary"
-                        )
-
-                    with ui.tab_panel(preview_tab):
-                        ui.markdown(ip.notes or "*No notes yet*").classes("w-full")
+            # Notes
+            with ui.column().classes("flex-1 min-w-[400px]"):
+                from app.pages.notes_component import render_notes
+                render_notes(session, "ip", ip.id)
 
         # Tags
         render_tag_assignment(session, ip)
