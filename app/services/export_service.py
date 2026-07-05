@@ -25,10 +25,15 @@ def export_ips_csv(session: Session, network_id: int | None = None) -> str:
         "status", "network", "last_seen", "notes",
     ])
     for ip in ips:
+        # Use IP's MAC, or fall back to linked device's MAC
+        mac = ip.mac_address or ""
+        if not mac and ip.device and ip.device.mac_address:
+            mac = ip.device.mac_address
+
         writer.writerow([
             ip.address,
             ip.hostname or "",
-            ip.mac_address or "",
+            mac,
             ip.assignment_type.value,
             ip.status.value,
             ip.network.name if ip.network else "",
