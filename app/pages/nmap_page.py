@@ -375,32 +375,53 @@ def _render_nmap_results(result, cmd_str, results_container):
                             existing.status = IPStatus.ACTIVE
                             if hostname and not existing.hostname:
                                 existing.hostname = hostname
-                            if os_info and (not existing.notes or os_info not in existing.notes):
-                                note_addition = f"\n\n---\n### Nmap Scan Results\n\n"
-                                note_addition += f"**OS:** {os_info}\n\n"
+                            # Save scan results as a Note
+                            if os_info or host.get("ports"):
+                                from app.models.note import Note as NoteModel
+                                note_body = ""
+                                if os_info:
+                                    note_body += f"**OS:** {os_info}\n\n"
                                 if host.get("ports"):
-                                    note_addition += "**Open Ports:**\n\n"
-                                    note_addition += "| Port | Service |\n|------|--------|\n"
+                                    note_body += "**Open Ports:**\n\n"
+                                    note_body += "| Port | Service |\n|------|--------|\n"
                                     for p in host["ports"][:15]:
-                                        note_addition += f"| {p['port']} | {p['service']} {p.get('version', '')} |\n"
-                                existing.notes = (existing.notes or "") + note_addition
+                                        note_body += f"| {p['port']} | {p['service']} {p.get('version', '')} |\n"
+                                scan_note = NoteModel(
+                                    title=f"Nmap Scan Results",
+                                    body=note_body,
+                                    entity_type="ip",
+                                    entity_id=existing.id,
+                                )
+                                db_session.add(scan_note)
                             updated += 1
                         else:
-                            notes = "### Nmap Scan Results\n\n"
+                            # Create new IP
+                            note_body = ""
                             if os_info:
-                                notes += f"**OS:** {os_info}\n\n"
+                                note_body += f"**OS:** {os_info}\n\n"
                             if host.get("ports"):
-                                notes += "**Open Ports:**\n\n"
-                                notes += "| Port | Service |\n|------|--------|\n"
+                                note_body += "**Open Ports:**\n\n"
+                                note_body += "| Port | Service |\n|------|--------|\n"
                                 for p in host["ports"][:15]:
-                                    notes += f"| {p['port']} | {p['service']} {p.get('version', '')} |\n"
+                                    note_body += f"| {p['port']} | {p['service']} {p.get('version', '')} |\n"
                             new_ip = IPAddress(
                                 address=ip_addr, network_id=target_net.id,
                                 hostname=hostname, assignment_type=get_assignment(ip_addr),
                                 status=IPStatus.ACTIVE, last_seen=datetime.now(timezone.utc),
-                                source="nmap_scan", notes=notes or None,
+                                source="nmap_scan",
                             )
                             db_session.add(new_ip)
+                            db_session.flush()
+                            # Add note for new IP
+                            if note_body:
+                                from app.models.note import Note as NoteModel
+                                scan_note = NoteModel(
+                                    title="Nmap Scan Results",
+                                    body=note_body,
+                                    entity_type="ip",
+                                    entity_id=new_ip.id,
+                                )
+                                db_session.add(scan_note)
                             added += 1
 
                     db_session.commit()
