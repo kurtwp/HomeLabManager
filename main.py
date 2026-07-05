@@ -4,6 +4,7 @@ from nicegui import ui, app
 
 from config import APP_TITLE, APP_PORT
 from app.database.db import init_db, get_session
+from app.database.pstn_db import init_pstn_db
 from app.services.seed import seed_defaults
 from app.pages.dashboard import render_dashboard
 from app.pages.networks import render_networks
@@ -24,11 +25,15 @@ from app.pages.snmp_page import render_snmp
 from app.pages.nmap_page import render_nmap
 from app.pages.ping_scan import render_ping_scan
 from app.pages.site_manager import render_site_manager
+from app.pages.pstn.pstn_dashboard import render_pstn_dashboard
+from app.pages.pstn.ranges import render_ranges, render_range_detail
+from app.pages.pstn.numbers import render_numbers
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
-# Initialize database and seed defaults
+# Initialize databases and seed defaults
 init_db()
+init_pstn_db()
 with get_session() as session:
     seed_defaults(session)
 
@@ -355,6 +360,28 @@ def ping_scan_page():
 @ui.page("/site-manager")
 def site_manager_page():
     render_site_manager()
+
+
+# --- PSTN / Telephony routes ---
+
+@ui.page("/pstn")
+def pstn_dashboard_page():
+    render_pstn_dashboard()
+
+
+@ui.page("/pstn/ranges")
+def pstn_ranges_page():
+    render_ranges()
+
+
+@ui.page("/pstn/ranges/{range_id}")
+def pstn_range_detail_page(range_id: int):
+    render_range_detail(range_id)
+
+
+@ui.page("/pstn/numbers")
+def pstn_numbers_page():
+    render_numbers()
 
 
 # --- Serve static CSS ---
