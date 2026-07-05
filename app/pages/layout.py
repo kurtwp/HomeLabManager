@@ -73,6 +73,9 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Phone Numbers", lambda: ui.navigate.to("/pstn/numbers"))
                     ui.menu_item("Customers", lambda: ui.navigate.to("/pstn/customers"))
                     ui.separator()
+                    ui.menu_item("Bulk Import", lambda: ui.navigate.to("/pstn/import"))
+                    ui.menu_item("Export", lambda: ui.navigate.to("/pstn/export"))
+                    ui.separator()
                     ui.menu_item("Audit Trail", lambda: ui.navigate.to("/pstn/audit"))
 
             # Discovery dropdown (UniFi, SNMP, Nmap, Ping, Scheduler)
