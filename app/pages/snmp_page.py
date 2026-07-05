@@ -144,6 +144,8 @@ def render_snmp():
                         single_result.clear()
                         with single_result:
                             _render_device_info(info)
+                            if info.reachable:
+                                _render_save_snmp_button(info)
 
                     ui.button("Query", icon="search", on_click=query_single).props(
                         "color=primary"
@@ -410,3 +412,63 @@ def _render_update_button(session, info):
         icon="save",
         on_click=apply_snmp_data,
     ).props("flat color=primary size=sm").classes("mt-2")
+
+
+def _render_save_snmp_button(info):
+    """Render a 'Save to Database' button that saves SNMP results as a Note on the IP."""
+
+    def save_snmp_to_db():
+        from app.database.db import get_session_direct
+        from app.models.ip_address import IPAddress as IP
+        from app.models.note import Note
+
+        s = get_session_direct()
+        ip_entry = s.query(IP).filter(IP.address == info.ip).first()
+
+        if not ip_entry:
+            ui.notify(f"IP {info.ip} not found in database. Run a scan first.", type="warning")
+            s.close()
+            return
+
+        # Build note body
+        note_body = ""
+        if info.sys_name:
+            note_body += f"**System Name:** {info.sys_name}\n\n"
+        if info.sys_descr:
+            note_body += f"**Description:** {info.sys_descr}\n\n"
+        if info.sys_location:
+            note_body += f"**Location:** {info.sys_location}\n\n"
+        if info.sys_contact:
+            note_body += f"**Contact:** {info.sys_contact}\n\n"
+        if info.sys_uptime:
+            note_body += f"**Uptime:** {info.sys_uptime}\n\n"
+        if info.sys_object_id:
+            note_body += f"**Object ID:** {info.sys_object_id}\n\n"
+
+        if info.interfaces:
+            note_body += f"**Interfaces ({info.interface_count}):**\n\n"
+            note_body += "| Name | Status | Speed | MAC |\n|------|--------|-------|-----|\n"
+            for iface in info.interfaces[:20]:
+                status = "🟢 Up" if iface["status"] == "up" else "🔴 Down" if iface["status"] == "down" else iface["status"]
+                note_body += f"| {iface['name']} | {status} | {iface['speed'] or '—'} | {iface['mac'] or '—'} |\n"
+
+        # Save as a Note
+        note = Note(
+            title=f"SNMP Query — {info.sys_name or info.ip}",
+            body=note_body,
+            entity_type="ip",
+            entity_id=ip_entry.id,
+        )
+        s.add(note)
+
+        # Also update hostname if not set
+        if info.sys_name and not ip_entry.hostname:
+            ip_entry.hostname = info.sys_name
+
+        s.commit()
+        s.close()
+        ui.notify(f"SNMP results saved to {info.ip}", type="positive")
+
+    ui.button(
+        "Save to Database", icon="save", on_click=save_snmp_to_db
+    ).props("color=primary outline").classes("mt-3")
