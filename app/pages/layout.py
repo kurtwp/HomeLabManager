@@ -5,8 +5,11 @@ from nicegui import ui
 
 def page_layout(title: str = "Home Lab Manager"):
     """Create the shared navigation layout. Call at the top of each page function."""
-    # Force dark mode
-    dark = ui.dark_mode(True)
+    from nicegui import app
+
+    # Persist dark mode preference per user using NiceGUI's storage
+    is_dark = app.storage.user.get("dark_mode", True)
+    dark = ui.dark_mode(is_dark)
 
     ui.add_css("""
         .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; }
@@ -97,6 +100,7 @@ def page_layout(title: str = "Home Lab Manager"):
             # Dark/Light mode toggle
             def toggle_dark():
                 dark.toggle()
+                app.storage.user["dark_mode"] = dark.value
 
             ui.button(
                 icon="dark_mode",

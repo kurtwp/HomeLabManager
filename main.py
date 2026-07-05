@@ -368,4 +368,5 @@ ui.run(
     native=False,
     reload=False,
     favicon="🌐",
+    storage_secret="homelab-manager-secret",
 )
