@@ -91,9 +91,20 @@ def render_notes(session: Session, entity_type: str, entity_id: int):
     with ui.dialog() as add_dialog, ui.card().classes("w-[600px]"):
         ui.label("Add Note").classes("text-xl font-bold mb-2")
         new_title = ui.input("Title *", placeholder="e.g. Configuration change").classes("w-full")
-        new_body = ui.textarea("Note (Markdown)", placeholder="Write your note...").classes(
-            "w-full"
-        ).props('rows="8"')
+
+        with ui.tabs().classes("w-full") as add_tabs:
+            add_edit_tab = ui.tab("Edit")
+            add_preview_tab = ui.tab("Preview")
+
+        with ui.tab_panels(add_tabs, value=add_edit_tab).classes("w-full"):
+            with ui.tab_panel(add_edit_tab):
+                new_body = ui.textarea(
+                    "Note (Markdown)", placeholder="Write your note..."
+                ).classes("w-full").props('rows="8"')
+            with ui.tab_panel(add_preview_tab):
+                add_preview_md = ui.markdown("*Start writing...*").classes("w-full")
+
+        add_tabs.on("update:model-value", lambda: add_preview_md.set_content(new_body.value or "*Start writing...*"))
 
         def save_new_note():
             if not new_title.value:
@@ -125,7 +136,18 @@ def render_notes(session: Session, entity_type: str, entity_id: int):
         edit_dialog.note_id = None
         ui.label("Edit Note").classes("text-xl font-bold mb-2")
         edit_title = ui.input("Title").classes("w-full")
-        edit_body = ui.textarea("Note (Markdown)").classes("w-full").props('rows="8"')
+
+        with ui.tabs().classes("w-full") as edit_tabs:
+            edit_edit_tab = ui.tab("Edit")
+            edit_preview_tab = ui.tab("Preview")
+
+        with ui.tab_panels(edit_tabs, value=edit_edit_tab).classes("w-full"):
+            with ui.tab_panel(edit_edit_tab):
+                edit_body = ui.textarea("Note (Markdown)").classes("w-full").props('rows="8"')
+            with ui.tab_panel(edit_preview_tab):
+                edit_preview_md = ui.markdown("").classes("w-full")
+
+        edit_tabs.on("update:model-value", lambda: edit_preview_md.set_content(edit_body.value or ""))
 
         def save_edit_note():
             from app.database.db import get_session_direct
