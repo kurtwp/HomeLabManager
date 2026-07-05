@@ -13,6 +13,7 @@ from app.services.pstn_service import (
     update_phone_number,
     delete_phone_number,
     get_all_ranges,
+    get_all_customers,
     search_numbers,
 )
 from app.pages.layout import page_layout
@@ -43,6 +44,10 @@ def render_numbers():
         range_options = {0: "All Ranges"}
         range_options.update({r.id: r.name for r in ranges})
 
+        customers = get_all_customers(session)
+        customer_options = {0: "All Customers"}
+        customer_options.update({c.id: c.name for c in customers})
+
         with ui.row().classes("w-full gap-3 items-end flex-wrap"):
             filter_search = ui.input("Search", placeholder="Number, name, dept...").classes("w-52")
             filter_type = ui.select(
@@ -52,6 +57,7 @@ def render_numbers():
                 {"": "All Statuses", **STATUSES}, value="", label="Status"
             ).classes("w-36")
             filter_range = ui.select(range_options, value=0, label="Range").classes("w-44")
+            filter_customer = ui.select(customer_options, value=0, label="Customer").classes("w-44")
             ui.button("Filter", icon="filter_list", on_click=lambda: refresh_numbers()).props(
                 "flat color=primary"
             )
@@ -75,6 +81,8 @@ def render_numbers():
                 filtered = [n for n in filtered if n.status == filter_status.value]
             if filter_range.value:
                 filtered = [n for n in filtered if n.range_id == filter_range.value]
+            if filter_customer.value:
+                filtered = [n for n in filtered if n.customer_id == filter_customer.value]
 
             # Natural sort
             def natural_key(pn):
@@ -97,6 +105,7 @@ def render_numbers():
                     {"name": "extension", "label": "Ext", "field": "extension", "align": "left"},
                     {"name": "type", "label": "Type", "field": "type", "align": "center"},
                     {"name": "status", "label": "Status", "field": "status", "align": "center"},
+                    {"name": "customer", "label": "Customer", "field": "customer", "align": "left"},
                     {"name": "assigned_to", "label": "Assigned To", "field": "assigned_to", "align": "left"},
                     {"name": "department", "label": "Department", "field": "department", "align": "left"},
                     {"name": "location", "label": "Location", "field": "location", "align": "left"},
@@ -104,6 +113,10 @@ def render_numbers():
                     {"name": "description", "label": "Description", "field": "description", "align": "left"},
                     {"name": "actions", "label": "Actions", "field": "actions", "align": "center"},
                 ]
+
+                # Build a customer lookup
+                cust_lookup = {c.id: c.name for c in customers}
+
                 rows = [
                     {
                         "id": pn.id,
@@ -111,6 +124,7 @@ def render_numbers():
                         "extension": pn.extension or "—",
                         "type": NUMBER_TYPES.get(pn.number_type, pn.number_type),
                         "status": pn.status,
+                        "customer": cust_lookup.get(pn.customer_id, "—") if pn.customer_id else "—",
                         "assigned_to": pn.assigned_to or "—",
                         "department": pn.department or "—",
                         "location": pn.location or "—",
@@ -169,6 +183,7 @@ def render_numbers():
             edit_device.value = pn.device_name or ""
             edit_description.value = pn.description or ""
             edit_range.value = pn.range_id or 0
+            edit_customer.value = pn.customer_id or 0
             edit_notes.value = pn.notes or ""
             edit_dialog.phone_id = phone_id
             edit_dialog.open()
@@ -198,6 +213,9 @@ def render_numbers():
     range_opts_add = {0: "— None —"}
     range_opts_add.update({r.id: r.name for r in ranges})
 
+    customer_opts_add = {0: "— None —"}
+    customer_opts_add.update({c.id: c.name for c in customers})
+
     with ui.dialog() as add_dialog, ui.card().classes("w-[500px]"):
         ui.label("New Phone Number").classes("text-xl font-bold mb-2")
         with ui.row().classes("w-full gap-2"):
@@ -212,6 +230,7 @@ def render_numbers():
             add_location = ui.input("Location", placeholder="Floor 2, Room 4").classes("flex-1")
         add_device = ui.input("Device Name", placeholder="PBX / gateway").classes("w-full")
         add_range = ui.select(range_opts_add, value=0, label="Number Range").classes("w-full")
+        add_customer = ui.select(customer_opts_add, value=0, label="Customer").classes("w-full")
         add_description = ui.input("Description", placeholder="What is this used for?").classes("w-full")
         add_notes = ui.textarea("Notes").classes("w-full").props('rows="3"')
 
@@ -235,6 +254,7 @@ def render_numbers():
                 location=add_location.value.strip() or None,
                 device_name=add_device.value.strip() or None,
                 range_id=add_range.value if add_range.value else None,
+                customer_id=add_customer.value if add_customer.value else None,
                 description=add_description.value.strip() or None,
                 notes=add_notes.value.strip() or None,
             )
@@ -251,6 +271,9 @@ def render_numbers():
     range_opts_edit = {0: "— None —"}
     range_opts_edit.update({r.id: r.name for r in ranges})
 
+    customer_opts_edit = {0: "— None —"}
+    customer_opts_edit.update({c.id: c.name for c in customers})
+
     with ui.dialog() as edit_dialog, ui.card().classes("w-[500px]"):
         edit_dialog.phone_id = None
         ui.label("Edit Phone Number").classes("text-xl font-bold mb-2")
@@ -266,6 +289,7 @@ def render_numbers():
             edit_location = ui.input("Location").classes("flex-1")
         edit_device = ui.input("Device Name").classes("w-full")
         edit_range = ui.select(range_opts_edit, value=0, label="Number Range").classes("w-full")
+        edit_customer = ui.select(customer_opts_edit, value=0, label="Customer").classes("w-full")
         edit_description = ui.input("Description").classes("w-full")
         edit_notes = ui.textarea("Notes").classes("w-full").props('rows="3"')
 
@@ -285,6 +309,7 @@ def render_numbers():
                 location=edit_location.value.strip() or None,
                 device_name=edit_device.value.strip() or None,
                 range_id=edit_range.value if edit_range.value else None,
+                customer_id=edit_customer.value if edit_customer.value else None,
                 description=edit_description.value.strip() or None,
                 notes=edit_notes.value.strip() or None,
             )

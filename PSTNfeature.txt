@@ -1,0 +1,76 @@
+Lets develop a new feature for storing telephone numbers.  This can be develop with a new DB called pstn.db
+
+## 1. Number Ranges (Prefixes)
+
+* Master Ranges: Large blocks of numbers allocated by a telecom provider (e.g., +1-555-0100 to +1-555-0199).
+* Sub-ranges: Smaller blocks broken down for specific organizational needs (e.g., a specific department or office floor).
+* Prefix Details: The specific country code, area code, or internal routing prefix.
+
+## 2. Individual Telephone Numbers
+
+* DID Numbers: Direct Inward Dialing numbers mapped directly from the public network to internal extensions.
+* Internal Extensions: Short-digit dialing extensions used inside an office (e.g., 4-digit or 5-digit local extensions).
+* Toll-Free Numbers: Inbound customer service numbers (e.g., 1-800 numbers).
+
+## 3. Allocation and Ownership Details
+
+* Status: The availability state of the number (e.g., Offline, Active, Reserved, Future Use).
+* Assigned Users / Owners: The specific employee, team, or department utilizing the number.
+* Customer / Client Links: If you are a service provider, you can assign numbers or entire ranges to specific external customers.
+
+## 4. Infrastructure Mapping
+
+* Locations: The physical office building, campus, or data center where the numbers are being routed.
+* Devices: The specific hardware or virtual telecom infrastructure (such as a VoIP Gateway, PBX, or Session Border Controller) handling the line.
+
+## 5. Documentation and Auditing
+
+* Descriptions: Custom text fields to note what the number is used for (e.g., "Main Fax Line," "CEO Mobile Forwarding").
+* Changelogs / Audit Trails: A historical log detailing who created, edited, or deleted a number or range, along with timestamps.
+
+Would you like to know how to manually add a new range, or are you looking to bulk import phone data using the phpIPAM import wizard? Let me know how I can help!Lets develop a new feature for storing telephone numbers.  This can be develop with a new DB called pstn.db
+## 1. Number Ranges (Prefixes)
+
+* Master Ranges: Large blocks of numbers allocated by a telecom provider (e.g., +1-555-0100 to +1-555-0199).
+* Sub-ranges: Smaller blocks broken down for specific organizational needs (e.g., a specific department or office floor).
+* Prefix Details: The specific country code, area code, or internal routing prefix.
+
+## 2. Individual Telephone Numbers
+
+* DID Numbers: Direct Inward Dialing numbers mapped directly from the public network to internal extensions.
+* Internal Extensions: Short-digit dialing extensions used inside an office (e.g., 4-digit or 5-digit local extensions).
+* Toll-Free Numbers: Inbound customer service numbers (e.g., 1-800 numbers).
+
+## 3. Allocation and Ownership Details
+
+* Status: The availability state of the number (e.g., Offline, Active, Reserved, Future Use).
+* Assigned Users / Owners: The specific employee, team, or department utilizing the number.
+* Customer / Client Links: If you are a service provider, you can assign numbers or entire ranges to specific external customers.
+
+## 4. Infrastructure Mapping
+
+* Locations: The physical office building, campus, or data center where the numbers are being routed.
+* Devices: The specific hardware or virtual telecom infrastructure (such as a VoIP Gateway, PBX, or Session Border Controller) handling the line.
+
+## 5. Documentation and Auditing
+
+* Descriptions: Custom text fields to note what the number is used for (e.g., "Main Fax Line," "CEO Mobile Forwarding").
+* Changelogs / Audit Trails: A historical log detailing who created, edited, or deleted a number or range, along with
+
+
+
+That's a solid feature spec. Before I start building, let me clarify a couple of things:
+
+Separate DB (pstn.db) — you want this as a completely separate SQLite database file, not mixed into home_lab_manager.db? I can set up a second SQLAlchemy engine for it.
+
+Scope for first iteration — given the size of this feature, I'd suggest building it in phases:
+
+Phase 1: Number ranges + individual numbers (DID, extensions, toll-free) with status tracking
+Phase 2: Allocation/ownership (users, departments, customers)
+Phase 3: Infrastructure mapping (locations, devices/PBX linking)
+Phase 4: Audit trail + bulk import
+UI location — would you like a new top-level nav item "Telephony" or "PSTN" in the header bar?
+
+Integration with existing app — should phone numbers link to existing devices (e.g., a VoIP phone in your device list) and IPs (e.g., SIP registrations)?
+
+Want me to proceed with Phase 1 using a separate pstn.db, or would you prefer a different approach?

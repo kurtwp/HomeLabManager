@@ -71,6 +71,9 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Dashboard", lambda: ui.navigate.to("/pstn"))
                     ui.menu_item("Number Ranges", lambda: ui.navigate.to("/pstn/ranges"))
                     ui.menu_item("Phone Numbers", lambda: ui.navigate.to("/pstn/numbers"))
+                    ui.menu_item("Customers", lambda: ui.navigate.to("/pstn/customers"))
+                    ui.separator()
+                    ui.menu_item("Audit Trail", lambda: ui.navigate.to("/pstn/audit"))
 
             # Discovery dropdown (UniFi, SNMP, Nmap, Ping, Scheduler)
             with ui.button("Discovery", icon="radar").props("flat color=white no-caps"):

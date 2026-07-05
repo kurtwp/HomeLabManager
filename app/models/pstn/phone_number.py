@@ -30,6 +30,7 @@ class PhoneNumber(PSTNBase):
     device_name = Column(String(200), nullable=True)  # PBX/gateway name
 
     range_id = Column(Integer, ForeignKey("number_ranges.id"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("pstn_customers.id"), nullable=True)
 
     notes = Column(Text, nullable=True)
 
@@ -38,6 +39,7 @@ class PhoneNumber(PSTNBase):
 
     # Relationships
     number_range = relationship("NumberRange", back_populates="phone_numbers")
+    customer = relationship("Customer", back_populates="phone_numbers")
 
     def __repr__(self):
         return f"<PhoneNumber {self.number} ({self.status})>"

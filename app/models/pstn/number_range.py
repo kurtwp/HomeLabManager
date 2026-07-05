@@ -33,12 +33,15 @@ class NumberRange(PSTNBase):
 
     status = Column(String(20), nullable=False, default="active")  # active, inactive, reserved
 
+    customer_id = Column(Integer, ForeignKey("pstn_customers.id"), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     parent_range = relationship("NumberRange", remote_side=[id], backref="sub_ranges")
     phone_numbers = relationship("PhoneNumber", back_populates="number_range", lazy="dynamic")
+    customer = relationship("Customer", back_populates="number_ranges")
 
     def __repr__(self):
         return f"<NumberRange {self.name} ({self.range_start} - {self.range_end})>"

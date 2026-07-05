@@ -28,6 +28,8 @@ from app.pages.site_manager import render_site_manager
 from app.pages.pstn.pstn_dashboard import render_pstn_dashboard
 from app.pages.pstn.ranges import render_ranges, render_range_detail
 from app.pages.pstn.numbers import render_numbers
+from app.pages.pstn.customers import render_customers, render_customer_detail
+from app.pages.pstn.audit import render_pstn_audit
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -382,6 +384,21 @@ def pstn_range_detail_page(range_id: int):
 @ui.page("/pstn/numbers")
 def pstn_numbers_page():
     render_numbers()
+
+
+@ui.page("/pstn/customers")
+def pstn_customers_page():
+    render_customers()
+
+
+@ui.page("/pstn/customers/{customer_id}")
+def pstn_customer_detail_page(customer_id: int):
+    render_customer_detail(customer_id)
+
+
+@ui.page("/pstn/audit")
+def pstn_audit_page():
+    render_pstn_audit()
 
 
 # --- Serve static CSS ---
