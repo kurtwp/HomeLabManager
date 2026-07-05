@@ -5,11 +5,28 @@ from nicegui import ui
 
 def page_layout(title: str = "Home Lab Manager"):
     """Create the shared navigation layout. Call at the top of each page function."""
-    # Enable dark mode by default
-    dark = ui.dark_mode(True)
+    # Use None to respect client's stored preference, defaulting to dark via CSS
+    dark = ui.dark_mode()
 
-    # Prevent white flash on page load by setting dark background immediately
-    ui.add_head_html('<style>body { background-color: #121212 !important; }</style>')
+    # Set dark by default on first visit, but respect toggle after that
+    ui.add_head_html('''<script>
+        if (localStorage.getItem("darkMode") === null) {
+            localStorage.setItem("darkMode", "true");
+        }
+        if (localStorage.getItem("darkMode") === "true") {
+            document.documentElement.style.backgroundColor = "#121212";
+            document.body && (document.body.style.backgroundColor = "#121212");
+        }
+    </script>''')
+
+    # Apply stored preference
+    ui.run_javascript('''
+        const isDark = localStorage.getItem("darkMode") !== "false";
+        if (isDark) {
+            document.body.classList.add("body--dark");
+        }
+        return isDark;
+    ''').then(lambda result: dark.set_value(result))
 
     ui.add_css("""
         .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; }
@@ -100,6 +117,8 @@ def page_layout(title: str = "Home Lab Manager"):
             # Dark/Light mode toggle
             def toggle_dark():
                 dark.toggle()
+                # Persist preference in browser localStorage
+                ui.run_javascript(f'localStorage.setItem("darkMode", "{str(not dark.value).lower()}")')
 
             ui.button(
                 icon="dark_mode",
