@@ -68,10 +68,4 @@ def render_help(selected_file: str = ""):
                     )
                     ui.label(
                         "Select a topic from the menu on the left to view documentation."
-                    ).classes("text-gray-500 mb-4")
-
-                    # Quick links
-                    ui.label("Available Topics:").classes("font-semibold mt-2")
-                    for doc in docs:
-                        slug = doc["filename"].replace(".md", "")
-                        ui.link(doc["title"], f"/help/{slug}").classes("block ml-2 my-1")
+                    ).classes("text-gray-500")
