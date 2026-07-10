@@ -223,6 +223,7 @@ def render_ip_detail(ip_id: int):
         return
 
     from app.pages.tag_assignment import render_tag_assignment
+    from app.services.oui_service import lookup_manufacturer
 
     with ui.column().classes("page-container w-full"):
         # Header
@@ -253,12 +254,12 @@ def render_ip_detail(ip_id: int):
                 ui.label(f"Hostname: {ip.hostname or '—'}")
 
                 # MAC with manufacturer lookup
-                mac_display = ip.mac_address or "—"
-                if ip.mac_address:
-                    from app.services.oui_service import lookup_manufacturer
-                    manufacturer = lookup_manufacturer(ip.mac_address)
-                    if manufacturer:
-                        mac_display = f"{ip.mac_address} ({manufacturer})"
+                mac_str = ip.mac_address or ""
+                try:
+                    manufacturer = lookup_manufacturer(mac_str) if mac_str else None
+                except Exception:
+                    manufacturer = None
+                mac_display = f"{mac_str} ({manufacturer})" if manufacturer else (mac_str or "—")
                 ui.label(f"MAC: {mac_display}")
                 ui.label(f"Network: {ip.network.name if ip.network else '—'}")
                 ui.label(f"Last Seen: {format_timestamp(ip.last_seen)}")

@@ -1,16 +1,27 @@
 """MAC OUI (Organizationally Unique Identifier) lookup service.
 
-Resolves MAC addresses to manufacturer names using the IEEE OUI database.
+Resolves MAC addresses to manufacturer names using a local vendor database file.
 """
 
-from mac_vendor_lookup import MacLookup, InvalidMacError, VendorNotFoundError
+import os
 
+# Load vendor database into memory at import time
+_oui_db: dict[str, str] = {}
 
-# Initialize the lookup object (uses cached OUI database)
-_mac_lookup = MacLookup()
+_vendor_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mac-vendors.txt")
 
-# Don't auto-update on import — use cached data (update manually if needed)
-# To update: python -c "from mac_vendor_lookup import MacLookup; MacLookup().update_vendors()"
+if os.path.exists(_vendor_file):
+    with open(_vendor_file, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                # Format: PREFIX:Vendor Name (colon-separated, first colon is delimiter)
+                colon_idx = line.find(":")
+                if colon_idx > 0:
+                    prefix = line[:colon_idx].strip().upper()
+                    vendor = line[colon_idx + 1:].strip()
+                    if prefix and vendor:
+                        _oui_db[prefix] = vendor
 
 
 def lookup_manufacturer(mac_address: str) -> str | None:
@@ -23,14 +34,19 @@ def lookup_manufacturer(mac_address: str) -> str | None:
     Returns:
         Manufacturer name (e.g., "Ubiquiti Inc") or None if not found.
     """
-    if not mac_address:
+    if not mac_address or not _oui_db:
         return None
-    try:
-        return _mac_lookup.lookup(mac_address)
-    except (InvalidMacError, VendorNotFoundError):
-        return None
-    except Exception:
-        return None
+
+    # Normalize MAC — strip separators and uppercase
+    mac_clean = mac_address.replace(":", "").replace("-", "").replace(".", "").upper()
+
+    # Try 6-char prefix first (most common OUI), then 9, then 7
+    for prefix_len in [6, 9, 7, 8]:
+        prefix = mac_clean[:prefix_len]
+        if prefix in _oui_db:
+            return _oui_db[prefix]
+
+    return None
 
 
 def lookup_bulk(mac_addresses: list[str]) -> dict[str, str | None]:
