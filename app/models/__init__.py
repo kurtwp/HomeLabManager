@@ -11,6 +11,8 @@ from app.models.custom_field import CustomFieldDefinition, CustomFieldValue
 from app.models.saved_search import SavedSearch
 from app.models.note import Note
 from app.models.uptime_monitor import MonitoredHost, UptimeEvent
+from app.services.notification_service import NotificationLog
+from app.services.firmware_service import DeviceFirmware
 
 __all__ = [
     "Network",

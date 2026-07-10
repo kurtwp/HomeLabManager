@@ -89,6 +89,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Ping Scan", lambda: ui.navigate.to("/ping-scan"))
                     ui.separator()
                     ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
+                    ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
                     ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
 
             ui.link("Import/Export", "/import-export").classes("nav-link")
@@ -103,6 +104,8 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Reports", lambda: ui.navigate.to("/reports"))
                     ui.menu_item("Locations", lambda: ui.navigate.to("/locations"))
                     ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
+                    ui.separator()
+                    ui.menu_item("Notifications", lambda: ui.navigate.to("/notifications"))
 
             search_input = ui.input(placeholder="Search...").props(
                 'dense outlined dark color="white"'

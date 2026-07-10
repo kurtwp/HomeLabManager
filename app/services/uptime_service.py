@@ -135,6 +135,14 @@ def run_checks():
                         details=f"Host recovered after {host.consecutive_failures} failed checks",
                     )
                     session.add(event)
+
+                    # Send recovery notification
+                    try:
+                        from app.services.notification_service import notify_host_recovered, is_notifications_enabled
+                        if is_notifications_enabled():
+                            notify_host_recovered(host.name, host.ip_address, host.consecutive_failures)
+                    except Exception as notify_err:
+                        print(f"Notification error (recovery): {notify_err}")
             else:
                 host.current_status = "down"
                 host.consecutive_failures += 1
@@ -148,6 +156,14 @@ def run_checks():
                         details=f"Host not responding (failure #{host.consecutive_failures})",
                     )
                     session.add(event)
+
+                    # Send down notification
+                    try:
+                        from app.services.notification_service import notify_host_down, is_notifications_enabled
+                        if is_notifications_enabled():
+                            notify_host_down(host.name, host.ip_address, host.consecutive_failures)
+                    except Exception as notify_err:
+                        print(f"Notification error (down): {notify_err}")
 
         session.commit()
     except Exception as e:

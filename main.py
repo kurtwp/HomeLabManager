@@ -34,6 +34,8 @@ from app.pages.pstn.bulk_import import render_bulk_import
 from app.pages.pstn.export import render_pstn_export
 from app.pages.uptime_page import render_uptime
 from app.pages.help_page import render_help
+from app.pages.notifications_page import render_notifications
+from app.pages.firmware_page import render_firmware
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -50,6 +52,10 @@ start_scheduler()
 from app.services.scheduler import scheduler
 from app.services.uptime_service import run_checks
 scheduler.add_job(run_checks, "interval", seconds=30, id="uptime_checks", replace_existing=True)
+
+# Add firmware check job (runs every 6 hours)
+from app.services.firmware_service import sync_firmware_info
+scheduler.add_job(sync_firmware_info, "interval", hours=6, id="firmware_check", replace_existing=True)
 
 
 # --- Page routes ---
@@ -386,6 +392,16 @@ def help_page():
 @ui.page("/help/{selected_file}")
 def help_detail_page(selected_file: str):
     render_help(selected_file)
+
+
+@ui.page("/notifications")
+def notifications_page():
+    render_notifications()
+
+
+@ui.page("/firmware")
+def firmware_page():
+    render_firmware()
 
 
 # --- PSTN / Telephony routes ---
