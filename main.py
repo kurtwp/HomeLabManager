@@ -36,6 +36,7 @@ from app.pages.uptime_page import render_uptime
 from app.pages.help_page import render_help
 from app.pages.notifications_page import render_notifications
 from app.pages.firmware_page import render_firmware
+from app.pages.settings_page import render_settings
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -402,6 +403,11 @@ def notifications_page():
 @ui.page("/firmware")
 def firmware_page():
     render_firmware()
+
+
+@ui.page("/settings")
+def settings_page():
+    render_settings()
 
 
 # --- PSTN / Telephony routes ---

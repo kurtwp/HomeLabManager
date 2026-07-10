@@ -106,6 +106,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
                     ui.separator()
                     ui.menu_item("Notifications", lambda: ui.navigate.to("/notifications"))
+                    ui.menu_item("Settings", lambda: ui.navigate.to("/settings"))
 
             search_input = ui.input(placeholder="Search...").props(
                 'dense outlined dark color="white"'

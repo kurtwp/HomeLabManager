@@ -11,6 +11,7 @@ The **wrench icon** (🔧) in the top-right corner of the navigation bar opens a
 | Locations | `/locations` | Physical device location tracking |
 | Custom Fields | `/custom-fields` | Extend entity data with custom attributes |
 | Notifications | `/notifications` | Alert settings, test, and history |
+| Settings | `/settings` | Edit .env configuration from the UI |
 
 ---
 
@@ -156,6 +157,47 @@ The main Custom Fields page shows a table of all defined fields, filterable by e
 
 ---
 
+## Settings
+
+A UI-based editor for the `.env` configuration file at `/settings`. Eliminates the need to SSH into the server or manually edit files for common configuration changes.
+
+### How It Works
+
+The Settings page reads the current `.env` file and presents all configuration options as a form. When you save, it writes the values back to `.env` while preserving comments and formatting.
+
+A restart is required for most changes to take effect (the app reads `.env` at startup).
+
+### Configuration Groups
+
+| Group | What It Configures |
+|-------|-------------------|
+| Application | App title, port, database URL |
+| UniFi Integration | API keys, base URL, site ID |
+| Notifications — General | Master enable/disable toggle |
+| Notifications — Email | SMTP server, credentials, recipients |
+| Notifications — Webhook | Webhook URL and enable toggle |
+| Notifications — Pushover | App token and user key |
+
+### Field Types
+
+- **Text** — standard text input
+- **Password** — masked input with show/hide toggle (for API keys and credentials)
+- **Number** — numeric input (e.g. port numbers)
+- **Toggle** — on/off switch for boolean settings (true/false)
+
+### Actions
+
+- **Save Settings** — writes all values to the `.env` file
+- **Reset** — reverts the form to the last saved values (discards unsaved changes)
+
+### Security Notes
+
+- The Settings page is accessible to anyone who can reach the app — consider this if exposing the app outside your LAN
+- API keys and passwords are stored in plain text in `.env` (standard for self-hosted apps)
+- The `.env` file is excluded from git via `.gitignore`
+
+---
+
 ## Tips
 
 - Use the Calculator before creating networks to plan your addressing
@@ -163,4 +205,5 @@ The main Custom Fields page shows a table of all defined fields, filterable by e
 - The Locations page is great for generating a quick physical inventory map
 - Custom fields are powerful for tracking site-specific metadata without modifying code
 - Configure Notifications to get alerted when hosts go down or firmware updates are available
+- Use Settings to configure .env without needing SSH or terminal access
 - All tools in this menu are read-only or configuration-only — they don't modify your core network/IP/device data
