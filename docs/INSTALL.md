@@ -166,7 +166,7 @@ WantedBy=multi-user.target
 ```
 
 > **Note**: The service runs as root to bind to port 80. For a home lab this is fine.
-> To run on port 8080 as a regular user instead, change `User=kpas`, `Group=kpas`
+> To run on port 8080 as a regular user instead, change `User=youruser`, `Group=youruser`
 > and set `APP_PORT=8080` in `.env`.
 
 Enable and start:
@@ -294,7 +294,7 @@ sudo systemctl restart homeipmanager
 
 # Option B: Use port 8080 (no root needed)
 # Edit .env: APP_PORT=8080
-# Edit service: User=kpas, Group=kpas
+# Edit service: User=youruser, Group=youruser
 ```
 
 ### Python 3.14 compatibility error
