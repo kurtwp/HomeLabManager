@@ -36,6 +36,17 @@ def render_uptime():
         # Status overview
         monitors_container = ui.column().classes("w-full mt-4 gap-3")
 
+        # Filter state: None = show all, "up" = only up, "down" = only down
+        active_filter = {"status": None}
+
+        def set_filter(status: str | None):
+            """Toggle filter — clicking the same badge again clears it."""
+            if active_filter["status"] == status:
+                active_filter["status"] = None
+            else:
+                active_filter["status"] = status
+            refresh_monitors()
+
         def refresh_monitors():
             monitors_container.clear()
             monitors = get_all_monitors(session)
@@ -51,15 +62,49 @@ def render_uptime():
                 down_count = sum(1 for m in monitors if m.current_status == "down")
                 unknown_count = sum(1 for m in monitors if m.current_status == "unknown")
 
-                with ui.row().classes("gap-4 mb-4"):
-                    ui.badge(f"🟢 {up_count} Up").props("color=green")
+                with ui.row().classes("gap-4 mb-4 items-center"):
+                    # Up badge — clickable filter
+                    up_badge = ui.badge(f"🟢 {up_count} Up").props("color=green")
+                    up_badge.classes("cursor-pointer")
+                    if active_filter["status"] == "up":
+                        up_badge.props("outline")
+                    up_badge.on("click", lambda: set_filter("up"))
+                    up_badge.tooltip("Click to filter — show only UP hosts")
+
+                    # Down badge — clickable filter
                     if down_count:
-                        ui.badge(f"🔴 {down_count} Down").props("color=red")
+                        down_badge = ui.badge(f"🔴 {down_count} Down").props("color=red")
+                        down_badge.classes("cursor-pointer")
+                        if active_filter["status"] == "down":
+                            down_badge.props("outline")
+                        down_badge.on("click", lambda: set_filter("down"))
+                        down_badge.tooltip("Click to filter — show only DOWN hosts")
+
                     if unknown_count:
                         ui.badge(f"⚪ {unknown_count} Unknown").props("color=gray")
 
+                    # Show active filter indicator
+                    if active_filter["status"]:
+                        ui.label(
+                            f"Showing: {active_filter['status'].upper()} only"
+                        ).classes("text-sm text-gray-500 italic ml-2")
+                        ui.button(
+                            "Show All", on_click=lambda: set_filter(None)
+                        ).props("flat dense size=sm color=primary")
+
+                # Apply filter
+                filtered = monitors
+                if active_filter["status"]:
+                    filtered = [m for m in monitors if m.current_status == active_filter["status"]]
+
+                if not filtered:
+                    ui.label(
+                        f"No hosts with status '{active_filter['status'].upper()}'."
+                    ).classes("text-gray-500 italic")
+                    return
+
                 # Host cards
-                for host in monitors:
+                for host in filtered:
                     status_color = {"up": "green", "down": "red", "unknown": "gray"}.get(
                         host.current_status, "gray"
                     )
