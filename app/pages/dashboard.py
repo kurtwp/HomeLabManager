@@ -7,6 +7,7 @@ from app.models.network import Network
 from app.models.ip_address import IPAddress, IPStatus, AssignmentType
 from app.models.device import Device
 from app.models.scan_log import ScanLog
+from app.models.uptime_monitor import MonitoredHost
 from app.services.network_service import get_all_networks, get_network_utilization
 from app.services.ip_service import get_recently_modified_ips, create_ip
 from app.services.device_service import create_device, get_all_device_types
@@ -54,6 +55,32 @@ def render_dashboard():
             _stat_card("Active Hosts", str(active_clients), "wifi", "orange")
             _stat_card("UniFi Devices", str(unifi_devices), "router", "purple")
             _stat_card("Other Devices", str(other_devices), "devices_other", "teal")
+
+        # Uptime Monitor summary
+        monitors = session.query(MonitoredHost).filter(MonitoredHost.is_enabled == True).all()
+        if monitors:
+            up_count = sum(1 for m in monitors if m.current_status == "up")
+            down_count = sum(1 for m in monitors if m.current_status == "down")
+            unknown_count = sum(1 for m in monitors if m.current_status == "unknown")
+            total_monitored = len(monitors)
+
+            with ui.card().classes("w-full cursor-pointer").on(
+                "click", lambda: ui.navigate.to("/uptime")
+            ):
+                with ui.row().classes("w-full items-center justify-between"):
+                    with ui.row().classes("items-center gap-3"):
+                        ui.icon("monitor_heart").classes("text-3xl text-indigo")
+                        ui.label("Uptime Monitor").classes("text-lg font-semibold")
+                    with ui.row().classes("items-center gap-4"):
+                        ui.badge(f"🟢 {up_count} Up").props("color=green")
+                        if down_count:
+                            ui.badge(f"🔴 {down_count} Down").props("color=red")
+                        if unknown_count:
+                            ui.badge(f"⚪ {unknown_count} Unknown").props("color=gray")
+                        ui.label(f"{total_monitored} monitored").classes(
+                            "text-sm text-gray-500"
+                        )
+                        ui.icon("arrow_forward").classes("text-gray-400")
 
         # Source breakdown
         if source_counts:
