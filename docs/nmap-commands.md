@@ -23,7 +23,7 @@ nmap -sn <target>
 ```
 nmap -sS <target>
 ```
-- **What it does:** Half-open TCP scan — sends SYN, waits for SYN-ACK, never completes handshake
+- **What it does:** Half-open TCP scan which sends SYN, waits for SYN-ACK, never completes handshake
 - **Use case:** Discover open ports without being logged by most services
 - **Speed:** Fast
 - **Requires sudo:** Yes
@@ -57,7 +57,7 @@ nmap -sV <target>
 nmap -sV -O <target>
 ```
 - **What it does:** Service version detection plus TCP/IP fingerprinting to identify the operating system
-- **Use case:** Full inventory — what OS and services each host runs
+- **Use case:** Full inventory: what OS and services each host runs
 - **Speed:** Slow (especially on a /24)
 - **Requires sudo:** Yes (OS detection requires raw packets)
 
@@ -71,7 +71,7 @@ nmap -A <target>
 - **Use case:** Maximum information gathering for a thorough audit
 - **Speed:** Very slow on large targets
 - **Requires sudo:** Yes
-- **Note:** This is noisy — services will log the scan
+- **Note:** This is noisy and services will log the scan
 
 ---
 
@@ -79,8 +79,8 @@ nmap -A <target>
 ```
 nmap -p 1-1024 <target>
 ```
-- **What it does:** Scans the well-known port range (1-1024)
-- **Use case:** Quick check for standard services (HTTP, SSH, FTP, SMTP, etc.)
+- **What it does:** Scans well known port range of 1-1024.
+- **Use case:** Quick check for standard services such as HTTP, SSH, FTP, SMTP, etc.
 - **Speed:** Moderate
 - **Requires sudo:** No
 
@@ -91,9 +91,9 @@ nmap -p 1-1024 <target>
 nmap -p- <target>
 ```
 - **What it does:** Scans every possible TCP port
-- **Use case:** Find services running on non-standard ports
-- **Speed:** Very slow (especially without sudo)
-- **Requires sudo:** Recommended (SYN scan is much faster)
+- **Use case:** Find services running on nonstandard ports
+- **Speed:** Very slow, especially without sudo.
+- **Requires sudo:** Recommended for SYN scan is much faster.
 
 ---
 

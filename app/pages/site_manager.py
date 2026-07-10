@@ -291,8 +291,16 @@ def render_site_manager():
                                     for host in hosts:
                                         state = host.get("reportedState", {})
                                         host_name = state.get("hostname") or host.get("id", "Unknown")
-                                        fw_version = state.get("firmwareVersion") or "Unknown"
-                                        ui.label(f"• {host_name}: {fw_version}").classes("text-sm font-mono")
+                                        os_version = state.get("version") or "Unknown"
+                                        # Get Network app version from controllers
+                                        network_ver = "Unknown"
+                                        for ctrl in state.get("controllers", []):
+                                            if ctrl.get("name") == "network":
+                                                network_ver = ctrl.get("version") or "Unknown"
+                                                break
+                                        ui.label(
+                                            f"• {host_name}: UniFi OS {os_version}, Network App {network_ver}"
+                                        ).classes("text-sm font-mono")
                                 except Exception:
                                     ui.label("• Could not fetch host versions").classes("text-sm text-gray-400")
 
