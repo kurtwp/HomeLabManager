@@ -323,37 +323,89 @@ def render_site_manager():
                                 ).classes("text-xs text-gray-400 mt-2")
                             return
 
-                        # Display as formatted JSON or key-value pairs
-                        data_list = metrics if isinstance(metrics, list) else metrics.get("data", [metrics])
+                        # Display ISP metrics data
+                        data_list = metrics.get("data", [])
 
-                        for entry in data_list:
+                        for site_entry in data_list:
+                            periods = site_entry.get("periods", [])
+                            site_id = site_entry.get("siteId", "")
+                            metric_type = site_entry.get("metricType", "")
+
                             with ui.card().classes("w-full"):
-                                site_name = (
-                                    entry.get("siteName")
-                                    or entry.get("site", {}).get("name", "")
-                                    or "Site"
-                                )
-                                ui.label(site_name).classes("text-lg font-semibold")
+                                ui.label(f"ISP Metrics ({metric_type} intervals)").classes("text-lg font-semibold mb-2")
 
-                                # Common ISP metric fields
-                                metric_fields = [
-                                    ("ISP", entry.get("isp") or entry.get("ispName")),
-                                    ("Download (Mbps)", entry.get("download") or entry.get("rxRate")),
-                                    ("Upload (Mbps)", entry.get("upload") or entry.get("txRate")),
-                                    ("Latency (ms)", entry.get("latency") or entry.get("avgLatency")),
-                                    ("Uptime (%)", entry.get("uptime") or entry.get("availability")),
-                                    ("WAN IP", entry.get("wanIp") or entry.get("wanAddress")),
-                                ]
+                                if periods:
+                                    # Show latest period
+                                    latest = periods[0]
+                                    wan_data = latest.get("data", {}).get("wan", {})
+                                    metric_time = latest.get("metricTime", "")
 
-                                for label, value in metric_fields:
-                                    if value is not None:
-                                        ui.label(f"{label}: {value}").classes("text-sm")
+                                    with ui.row().classes("gap-6 flex-wrap mb-4"):
+                                        with ui.column().classes("items-center gap-0"):
+                                            ui.icon("business").classes("text-2xl text-blue")
+                                            ui.label(wan_data.get("ispName", "—")).classes("font-bold")
+                                            ui.label("ISP").classes("text-xs text-gray-500")
 
-                                # If there are nested metrics show raw
-                                if not any(v for _, v in metric_fields):
-                                    ui.code(str(entry), language="json").classes(
-                                        "w-full text-xs mt-2"
-                                    )
+                                        with ui.column().classes("items-center gap-0"):
+                                            ui.icon("speed").classes("text-2xl text-green")
+                                            ui.label(f"{wan_data.get('avgLatency', '—')} ms").classes("font-bold")
+                                            ui.label("Avg Latency").classes("text-xs text-gray-500")
+
+                                        with ui.column().classes("items-center gap-0"):
+                                            ui.icon("download").classes("text-2xl text-blue")
+                                            dl = wan_data.get("download_kbps", 0)
+                                            ui.label(f"{dl // 1000} Mbps" if dl else "—").classes("font-bold")
+                                            ui.label("Download").classes("text-xs text-gray-500")
+
+                                        with ui.column().classes("items-center gap-0"):
+                                            ui.icon("upload").classes("text-2xl text-orange")
+                                            ul = wan_data.get("upload_kbps", 0)
+                                            ui.label(f"{ul // 1000} Mbps" if ul else "—").classes("font-bold")
+                                            ui.label("Upload").classes("text-xs text-gray-500")
+
+                                        with ui.column().classes("items-center gap-0"):
+                                            uptime = wan_data.get("uptime", 0)
+                                            color = "green" if uptime >= 99 else "orange" if uptime >= 95 else "red"
+                                            ui.icon("check_circle").classes(f"text-2xl text-{color}")
+                                            ui.label(f"{uptime}%").classes("font-bold")
+                                            ui.label("Uptime").classes("text-xs text-gray-500")
+
+                                        with ui.column().classes("items-center gap-0"):
+                                            ui.icon("error_outline").classes("text-2xl text-gray")
+                                            ui.label(f"{wan_data.get('packetLoss', 0)}%").classes("font-bold")
+                                            ui.label("Packet Loss").classes("text-xs text-gray-500")
+
+                                    ui.label(f"Last updated: {metric_time}").classes("text-xs text-gray-400")
+
+                                    # History table (last 10 periods)
+                                    if len(periods) > 1:
+                                        with ui.expansion(f"History ({len(periods)} data points)", icon="history").classes("w-full mt-2"):
+                                            columns = [
+                                                {"name": "time", "label": "Time", "field": "time", "align": "left"},
+                                                {"name": "isp", "label": "ISP", "field": "isp", "align": "left"},
+                                                {"name": "latency", "label": "Latency (ms)", "field": "latency", "align": "right"},
+                                                {"name": "download", "label": "Download", "field": "download", "align": "right"},
+                                                {"name": "upload", "label": "Upload", "field": "upload", "align": "right"},
+                                                {"name": "uptime", "label": "Uptime %", "field": "uptime", "align": "right"},
+                                                {"name": "loss", "label": "Loss %", "field": "loss", "align": "right"},
+                                            ]
+                                            rows = []
+                                            for p in periods[:50]:
+                                                w = p.get("data", {}).get("wan", {})
+                                                dl_kbps = w.get("download_kbps", 0)
+                                                ul_kbps = w.get("upload_kbps", 0)
+                                                rows.append({
+                                                    "time": p.get("metricTime", "—")[:16],
+                                                    "isp": w.get("ispName", "—"),
+                                                    "latency": w.get("avgLatency", "—"),
+                                                    "download": f"{dl_kbps // 1000} Mbps" if dl_kbps else "—",
+                                                    "upload": f"{ul_kbps // 1000} Mbps" if ul_kbps else "—",
+                                                    "uptime": w.get("uptime", "—"),
+                                                    "loss": w.get("packetLoss", "—"),
+                                                })
+                                            ui.table(columns=columns, rows=rows, row_key="time").classes(
+                                                "w-full"
+                                            ).props("flat bordered dense")
 
                 ui.button("Load ISP Metrics", icon="speed", on_click=load_isp_metrics).props(
                     "color=primary"
