@@ -326,83 +326,102 @@ def render_site_manager():
                         # Display ISP metrics data
                         data_list = metrics.get("data", [])
 
+                        # Build host ID to name map
+                        try:
+                            all_hosts = fetch_hosts()
+                            host_name_map = {}
+                            for h in all_hosts:
+                                state = h.get("reportedState", {})
+                                host_name_map[h.get("id")] = state.get("hostname") or "Unknown"
+                        except Exception:
+                            host_name_map = {}
+
                         for site_entry in data_list:
                             periods = site_entry.get("periods", [])
-                            site_id = site_entry.get("siteId", "")
+                            host_id = site_entry.get("hostId", "")
+                            site_name = host_name_map.get(host_id, host_id[:20] + "...")
                             metric_type = site_entry.get("metricType", "")
 
-                            with ui.card().classes("w-full"):
-                                ui.label(f"ISP Metrics ({metric_type} intervals)").classes("text-lg font-semibold mb-2")
+                            with ui.card().classes("w-full mt-3"):
+                                ui.label(f"📍 {site_name}").classes("text-xl font-semibold mb-2")
 
                                 if periods:
-                                    # Show latest period
                                     latest = periods[0]
-                                    wan_data = latest.get("data", {}).get("wan", {})
+                                    wan_entries = latest.get("data", {})
                                     metric_time = latest.get("metricTime", "")
 
-                                    with ui.row().classes("gap-6 flex-wrap mb-4"):
-                                        with ui.column().classes("items-center gap-0"):
-                                            ui.icon("business").classes("text-2xl text-blue")
-                                            ui.label(wan_data.get("ispName", "—")).classes("font-bold")
-                                            ui.label("ISP").classes("text-xs text-gray-500")
+                                    # Show each WAN (wan, wan2, etc.)
+                                    for wan_key, wan_data in wan_entries.items():
+                                        wan_label = wan_key.upper().replace("WAN", "WAN ")
+                                        isp_name = wan_data.get("ispName", "Unknown ISP")
 
-                                        with ui.column().classes("items-center gap-0"):
-                                            ui.icon("speed").classes("text-2xl text-green")
-                                            ui.label(f"{wan_data.get('avgLatency', '—')} ms").classes("font-bold")
-                                            ui.label("Avg Latency").classes("text-xs text-gray-500")
+                                        ui.label(f"{wan_label} — {isp_name}").classes("text-md font-semibold mt-2")
 
-                                        with ui.column().classes("items-center gap-0"):
-                                            ui.icon("download").classes("text-2xl text-blue")
-                                            dl = wan_data.get("download_kbps", 0)
-                                            ui.label(f"{dl // 1000} Mbps" if dl else "—").classes("font-bold")
-                                            ui.label("Download").classes("text-xs text-gray-500")
+                                        with ui.row().classes("gap-6 flex-wrap mb-3"):
+                                            with ui.column().classes("items-center gap-0"):
+                                                ui.icon("speed").classes("text-2xl text-green")
+                                                ui.label(f"{wan_data.get('avgLatency', '—')} ms").classes("font-bold")
+                                                ui.label("Latency").classes("text-xs text-gray-500")
 
-                                        with ui.column().classes("items-center gap-0"):
-                                            ui.icon("upload").classes("text-2xl text-orange")
-                                            ul = wan_data.get("upload_kbps", 0)
-                                            ui.label(f"{ul // 1000} Mbps" if ul else "—").classes("font-bold")
-                                            ui.label("Upload").classes("text-xs text-gray-500")
+                                            with ui.column().classes("items-center gap-0"):
+                                                ui.icon("download").classes("text-2xl text-blue")
+                                                dl = wan_data.get("download_kbps", 0)
+                                                ui.label(f"{dl // 1000} Mbps" if dl else "—").classes("font-bold")
+                                                ui.label("Download").classes("text-xs text-gray-500")
 
-                                        with ui.column().classes("items-center gap-0"):
-                                            uptime = wan_data.get("uptime", 0)
-                                            color = "green" if uptime >= 99 else "orange" if uptime >= 95 else "red"
-                                            ui.icon("check_circle").classes(f"text-2xl text-{color}")
-                                            ui.label(f"{uptime}%").classes("font-bold")
-                                            ui.label("Uptime").classes("text-xs text-gray-500")
+                                            with ui.column().classes("items-center gap-0"):
+                                                ui.icon("upload").classes("text-2xl text-orange")
+                                                ul = wan_data.get("upload_kbps", 0)
+                                                ui.label(f"{ul // 1000} Mbps" if ul else "—").classes("font-bold")
+                                                ui.label("Upload").classes("text-xs text-gray-500")
 
-                                        with ui.column().classes("items-center gap-0"):
-                                            ui.icon("error_outline").classes("text-2xl text-gray")
-                                            ui.label(f"{wan_data.get('packetLoss', 0)}%").classes("font-bold")
-                                            ui.label("Packet Loss").classes("text-xs text-gray-500")
+                                            with ui.column().classes("items-center gap-0"):
+                                                uptime = wan_data.get("uptime", 0)
+                                                color = "green" if uptime >= 99 else "orange" if uptime >= 95 else "red"
+                                                ui.icon("check_circle").classes(f"text-2xl text-{color}")
+                                                ui.label(f"{uptime}%").classes("font-bold")
+                                                ui.label("Uptime").classes("text-xs text-gray-500")
 
-                                    ui.label(f"Last updated: {metric_time}").classes("text-xs text-gray-400")
+                                            with ui.column().classes("items-center gap-0"):
+                                                loss = wan_data.get("packetLoss", 0)
+                                                loss_color = "green" if loss == 0 else "orange" if loss < 2 else "red"
+                                                ui.icon("error_outline").classes(f"text-2xl text-{loss_color}")
+                                                ui.label(f"{loss}%").classes("font-bold")
+                                                ui.label("Packet Loss").classes("text-xs text-gray-500")
 
-                                    # History table (last 10 periods)
+                                            with ui.column().classes("items-center gap-0"):
+                                                ui.icon("timer_off").classes("text-2xl text-gray")
+                                                ui.label(f"{wan_data.get('downtime', 0)} min").classes("font-bold")
+                                                ui.label("Downtime").classes("text-xs text-gray-500")
+
+                                    ui.label(f"Last updated: {metric_time}").classes("text-xs text-gray-400 mt-2")
+
+                                    # History
                                     if len(periods) > 1:
                                         with ui.expansion(f"History ({len(periods)} data points)", icon="history").classes("w-full mt-2"):
                                             columns = [
                                                 {"name": "time", "label": "Time", "field": "time", "align": "left"},
+                                                {"name": "wan", "label": "WAN", "field": "wan", "align": "center"},
                                                 {"name": "isp", "label": "ISP", "field": "isp", "align": "left"},
-                                                {"name": "latency", "label": "Latency (ms)", "field": "latency", "align": "right"},
+                                                {"name": "latency", "label": "Latency", "field": "latency", "align": "right"},
                                                 {"name": "download", "label": "Download", "field": "download", "align": "right"},
                                                 {"name": "upload", "label": "Upload", "field": "upload", "align": "right"},
-                                                {"name": "uptime", "label": "Uptime %", "field": "uptime", "align": "right"},
-                                                {"name": "loss", "label": "Loss %", "field": "loss", "align": "right"},
+                                                {"name": "uptime", "label": "Uptime", "field": "uptime", "align": "right"},
                                             ]
                                             rows = []
                                             for p in periods[:50]:
-                                                w = p.get("data", {}).get("wan", {})
-                                                dl_kbps = w.get("download_kbps", 0)
-                                                ul_kbps = w.get("upload_kbps", 0)
-                                                rows.append({
-                                                    "time": p.get("metricTime", "—")[:16],
-                                                    "isp": w.get("ispName", "—"),
-                                                    "latency": w.get("avgLatency", "—"),
-                                                    "download": f"{dl_kbps // 1000} Mbps" if dl_kbps else "—",
-                                                    "upload": f"{ul_kbps // 1000} Mbps" if ul_kbps else "—",
-                                                    "uptime": w.get("uptime", "—"),
-                                                    "loss": w.get("packetLoss", "—"),
-                                                })
+                                                for wk, wd in p.get("data", {}).items():
+                                                    dl_kbps = wd.get("download_kbps", 0)
+                                                    ul_kbps = wd.get("upload_kbps", 0)
+                                                    rows.append({
+                                                        "time": p.get("metricTime", "—")[:16],
+                                                        "wan": wk.upper(),
+                                                        "isp": wd.get("ispName", "—"),
+                                                        "latency": f"{wd.get('avgLatency', '—')} ms",
+                                                        "download": f"{dl_kbps // 1000} Mbps" if dl_kbps else "—",
+                                                        "upload": f"{ul_kbps // 1000} Mbps" if ul_kbps else "—",
+                                                        "uptime": f"{wd.get('uptime', '—')}%",
+                                                    })
                                             ui.table(columns=columns, rows=rows, row_key="time").classes(
                                                 "w-full"
                                             ).props("flat bordered dense")
