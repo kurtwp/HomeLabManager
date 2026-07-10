@@ -41,25 +41,34 @@ class NotificationLog(Base):
 # --- Configuration ---
 
 def _get_config() -> dict:
-    """Load notification config from environment."""
+    """Load notification config fresh from .env file (not cached os.environ)."""
+    from dotenv import dotenv_values
+    from pathlib import Path
+
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    env = dotenv_values(env_path) if env_path.exists() else {}
+
+    def _get(key: str, default: str = "") -> str:
+        return env.get(key, os.getenv(key, default))
+
     return {
-        "enabled": os.getenv("NOTIFICATIONS_ENABLED", "false").lower() == "true",
+        "enabled": _get("NOTIFICATIONS_ENABLED", "false").lower() == "true",
         # Email (SMTP)
-        "email_enabled": os.getenv("NOTIFY_EMAIL_ENABLED", "false").lower() == "true",
-        "smtp_host": os.getenv("NOTIFY_SMTP_HOST", ""),
-        "smtp_port": int(os.getenv("NOTIFY_SMTP_PORT", "587")),
-        "smtp_user": os.getenv("NOTIFY_SMTP_USER", ""),
-        "smtp_pass": os.getenv("NOTIFY_SMTP_PASS", ""),
-        "smtp_from": os.getenv("NOTIFY_SMTP_FROM", ""),
-        "smtp_to": os.getenv("NOTIFY_SMTP_TO", ""),  # comma-separated
-        "smtp_tls": os.getenv("NOTIFY_SMTP_TLS", "true").lower() == "true",
+        "email_enabled": _get("NOTIFY_EMAIL_ENABLED", "false").lower() == "true",
+        "smtp_host": _get("NOTIFY_SMTP_HOST", ""),
+        "smtp_port": int(_get("NOTIFY_SMTP_PORT", "587")),
+        "smtp_user": _get("NOTIFY_SMTP_USER", ""),
+        "smtp_pass": _get("NOTIFY_SMTP_PASS", ""),
+        "smtp_from": _get("NOTIFY_SMTP_FROM", ""),
+        "smtp_to": _get("NOTIFY_SMTP_TO", ""),  # comma-separated
+        "smtp_tls": _get("NOTIFY_SMTP_TLS", "true").lower() == "true",
         # Webhook (generic)
-        "webhook_enabled": os.getenv("NOTIFY_WEBHOOK_ENABLED", "false").lower() == "true",
-        "webhook_url": os.getenv("NOTIFY_WEBHOOK_URL", ""),
+        "webhook_enabled": _get("NOTIFY_WEBHOOK_ENABLED", "false").lower() == "true",
+        "webhook_url": _get("NOTIFY_WEBHOOK_URL", ""),
         # Pushover
-        "pushover_enabled": os.getenv("NOTIFY_PUSHOVER_ENABLED", "false").lower() == "true",
-        "pushover_token": os.getenv("NOTIFY_PUSHOVER_TOKEN", ""),
-        "pushover_user": os.getenv("NOTIFY_PUSHOVER_USER", ""),
+        "pushover_enabled": _get("NOTIFY_PUSHOVER_ENABLED", "false").lower() == "true",
+        "pushover_token": _get("NOTIFY_PUSHOVER_TOKEN", ""),
+        "pushover_user": _get("NOTIFY_PUSHOVER_USER", ""),
     }
 
 

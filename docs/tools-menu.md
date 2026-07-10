@@ -196,6 +196,14 @@ A restart is required for most changes to take effect (the app reads `.env` at s
 - API keys and passwords are stored in plain text in `.env` (standard for self-hosted apps)
 - The `.env` file is excluded from git via `.gitignore`
 
+### What Takes Effect Immediately vs Requires Restart
+
+| Setting Group | Restart Needed? |
+|---------------|----------------|
+| Notifications (all channels) | No — takes effect immediately |
+| Application (title, port, database) | Yes |
+| UniFi Integration (API keys, URLs) | Yes |
+
 ---
 
 ## Tips

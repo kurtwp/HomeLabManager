@@ -133,10 +133,11 @@ def render_settings():
             "text-gray-500 mb-2"
         )
         with ui.row().classes("items-center gap-2 mb-4"):
-            ui.icon("warning").classes("text-orange")
+            ui.icon("info").classes("text-blue")
             ui.label(
-                "A restart is required for most changes to take effect."
-            ).classes("text-sm text-orange")
+                "Notification settings take effect immediately. "
+                "App, database, and UniFi settings require a restart."
+            ).classes("text-sm text-blue")
 
         ui.separator()
 
@@ -195,7 +196,15 @@ def render_settings():
 
                 try:
                     _write_env(new_values)
-                    ui.notify("Settings saved! Restart the app for changes to take effect.", type="positive")
+                    # Reload .env into os.environ so changes take effect immediately
+                    # for services that read from os.getenv (notifications read from file directly)
+                    from dotenv import load_dotenv
+                    load_dotenv(ENV_FILE, override=True)
+                    ui.notify(
+                        "Settings saved! Notification settings take effect immediately. "
+                        "App/UniFi/database changes require a restart.",
+                        type="positive",
+                    )
                 except Exception as e:
                     ui.notify(f"Error saving settings: {e}", type="negative")
 
