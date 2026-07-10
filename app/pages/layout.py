@@ -93,6 +93,7 @@ def page_layout(title: str = "Home Lab Manager"):
 
             ui.link("Import/Export", "/import-export").classes("nav-link")
             ui.link("History", "/history").classes("nav-link")
+            ui.link("Help", "/help").classes("nav-link")
 
         with ui.row().classes("items-center gap-2"):
             # Tools menu

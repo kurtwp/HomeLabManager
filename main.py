@@ -33,6 +33,7 @@ from app.pages.pstn.audit import render_pstn_audit
 from app.pages.pstn.bulk_import import render_bulk_import
 from app.pages.pstn.export import render_pstn_export
 from app.pages.uptime_page import render_uptime
+from app.pages.help_page import render_help
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -375,6 +376,16 @@ def site_manager_page():
 @ui.page("/uptime")
 def uptime_page():
     render_uptime()
+
+
+@ui.page("/help")
+def help_page():
+    render_help()
+
+
+@ui.page("/help/{selected_file}")
+def help_detail_page(selected_file: str):
+    render_help(selected_file)
 
 
 # --- PSTN / Telephony routes ---
