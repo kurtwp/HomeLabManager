@@ -84,9 +84,10 @@ def render_ping_scan():
 
             # Try fping first (much faster), fall back to threaded ping
             timeout_sec = int(timeout_input.value or 1)
+            scan_method = "fping" if shutil.which("fping") else "ping"
             found_hosts = _scan_with_fping(ip_list, target, timeout_sec)
             if found_hosts is None:
-                # fping not available, use threaded ping fallback
+                scan_method = "ping"
                 found_hosts = _scan_with_ping(ip_list, timeout_sec)
 
             # Sort by IP numerically
@@ -205,6 +206,7 @@ def render_ping_scan():
                         if skipped:
                             ui.badge(f"{skipped} skipped (no matching network)").props("color=orange outline")
                         ui.label(f"Target: {target}").classes("text-sm text-gray-500")
+                        ui.badge(f"Method: {scan_method}").props("color=gray outline")
 
                     if found_hosts:
                         columns = [
