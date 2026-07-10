@@ -1,5 +1,7 @@
 """Ping-based network scan page — discovers hosts and saves to DB."""
 
+import re
+import shutil
 import subprocess
 import socket
 import ipaddress
@@ -77,41 +79,15 @@ def render_ping_scan():
                 with ui.row().classes("items-center gap-3"):
                     ui.spinner(size="lg")
                     ui.label(
-                        f"Pinging {len(ip_list)} hosts (timeout: {int(timeout_input.value)}s)..."
+                        f"Scanning {len(ip_list)} hosts..."
                     ).classes("text-sm text-gray-500")
 
-            # Run pings in parallel
+            # Try fping first (much faster), fall back to threaded ping
             timeout_sec = int(timeout_input.value or 1)
-            found_hosts = []
-
-            def ping_host(host_str: str) -> tuple[str, float | None, str | None]:
-                """Ping a host and attempt reverse DNS."""
-                latency = None
-                hostname = None
-                try:
-                    import re
-                    result = subprocess.run(
-                        ["ping", "-c", "1", "-W", str(timeout_sec), host_str],
-                        capture_output=True, text=True, timeout=timeout_sec + 2,
-                    )
-                    if result.returncode == 0:
-                        match = re.search(r"time=([\d.]+)", result.stdout)
-                        latency = float(match.group(1)) if match else 0.0
-                        # Try reverse DNS
-                        try:
-                            hostname, _, _ = socket.gethostbyaddr(host_str)
-                        except (socket.herror, socket.gaierror, OSError):
-                            pass
-                except (subprocess.TimeoutExpired, OSError):
-                    pass
-                return (host_str, latency, hostname)
-
-            with ThreadPoolExecutor(max_workers=50) as executor:
-                futures = {executor.submit(ping_host, ip): ip for ip in ip_list}
-                for future in as_completed(futures):
-                    ip, latency, hostname = future.result()
-                    if latency is not None:
-                        found_hosts.append({"ip": ip, "latency": latency, "hostname": hostname})
+            found_hosts = _scan_with_fping(ip_list, target, timeout_sec)
+            if found_hosts is None:
+                # fping not available, use threaded ping fallback
+                found_hosts = _scan_with_ping(ip_list, timeout_sec)
 
             # Sort by IP numerically
             found_hosts.sort(key=lambda x: ipaddress.ip_address(x["ip"]))
@@ -270,3 +246,113 @@ def render_ping_scan():
             )
 
     session.close()
+
+
+def _scan_with_fping(ip_list: list[str], target: str, timeout_sec: int) -> list[dict] | None:
+    """
+    Use fping for fast parallel ICMP scanning.
+    Returns list of found hosts, or None if fping is not installed.
+    """
+    if not shutil.which("fping"):
+        return None
+
+    found_hosts = []
+    try:
+        # fping can take a CIDR or a list on stdin
+        # Use -a (alive only), -q (quiet), -t timeout_ms, -r 1 retry
+        cmd = [
+            "fping", "-a", "-q",
+            "-t", str(timeout_sec * 1000),
+            "-r", "1",
+            "-g", target,
+        ]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout_sec * 5 + 30,
+        )
+
+        # fping outputs alive hosts to stdout (one per line) and stats to stderr
+        alive_hosts = set()
+        for line in result.stdout.strip().split("\n"):
+            ip = line.strip()
+            if ip:
+                alive_hosts.add(ip)
+
+        # Also check stderr for "is alive" format (some fping versions)
+        for line in result.stderr.strip().split("\n"):
+            if "is alive" in line:
+                ip = line.split()[0]
+                alive_hosts.add(ip)
+
+        # Get latency by running fping -e (elapsed time) on alive hosts
+        if alive_hosts:
+            cmd_latency = [
+                "fping", "-e", "-q",
+                "-t", str(timeout_sec * 1000),
+                "-r", "0",
+            ] + list(alive_hosts)
+            lat_result = subprocess.run(
+                cmd_latency, capture_output=True, text=True, timeout=timeout_sec * 3 + 10,
+            )
+            # Parse latency from stderr: "192.168.2.1 : [0], 84 bytes, 0.35 ms"
+            latency_map = {}
+            for line in lat_result.stderr.strip().split("\n"):
+                match = re.search(r"^(\S+)\s+:.*?(\d+\.?\d*)\s*ms", line)
+                if match:
+                    latency_map[match.group(1)] = float(match.group(2))
+
+        for ip in alive_hosts:
+            latency = latency_map.get(ip, 0.0) if alive_hosts else 0.0
+            # Reverse DNS
+            hostname = None
+            try:
+                hostname, _, _ = socket.gethostbyaddr(ip)
+            except (socket.herror, socket.gaierror, OSError):
+                pass
+            found_hosts.append({"ip": ip, "latency": latency, "hostname": hostname})
+
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        pass
+    except Exception:
+        return None
+
+    return found_hosts
+
+
+def _scan_with_ping(ip_list: list[str], timeout_sec: int) -> list[dict]:
+    """
+    Fallback: use threaded subprocess ping for host discovery.
+    Slower than fping but requires no extra packages.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    found_hosts = []
+
+    def ping_host(host_str: str) -> tuple[str, float | None, str | None]:
+        latency = None
+        hostname = None
+        try:
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", str(timeout_sec), host_str],
+                capture_output=True, text=True, timeout=timeout_sec + 2,
+            )
+            if result.returncode == 0:
+                match = re.search(r"time=([\d.]+)", result.stdout)
+                latency = float(match.group(1)) if match else 0.0
+                try:
+                    hostname, _, _ = socket.gethostbyaddr(host_str)
+                except (socket.herror, socket.gaierror, OSError):
+                    pass
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        return (host_str, latency, hostname)
+
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(ping_host, ip): ip for ip in ip_list}
+        for future in as_completed(futures):
+            ip, latency, hostname = future.result()
+            if latency is not None:
+                found_hosts.append({"ip": ip, "latency": latency, "hostname": hostname})
+
+    return found_hosts
