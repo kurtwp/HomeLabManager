@@ -33,9 +33,13 @@ def render_numbers():
     with ui.column().classes("page-container w-full"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label("Phone Numbers").classes("text-3xl font-bold")
-            ui.button("Add Number", icon="add", on_click=lambda: add_dialog.open()).props(
-                "color=primary"
-            )
+            with ui.row().classes("gap-2"):
+                ui.button("Add Number", icon="add", on_click=lambda: add_dialog.open()).props(
+                    "color=primary"
+                )
+                ui.button("Delete All", icon="delete_sweep", on_click=lambda: _confirm_delete_all_numbers()).props(
+                    "color=red outline"
+                )
 
         ui.separator().classes("my-4")
 
@@ -63,6 +67,22 @@ def render_numbers():
             )
 
         numbers_container = ui.column().classes("w-full mt-4")
+
+        def _confirm_delete_all_numbers():
+            with ui.dialog() as dlg, ui.card():
+                total = session.query(PhoneNumber).count()
+                ui.label(f"Delete ALL {total} phone numbers?").classes("text-lg font-semibold")
+                ui.label("This cannot be undone.").classes("text-sm text-red")
+                with ui.row().classes("justify-end gap-2 mt-3"):
+                    ui.button("Cancel", on_click=dlg.close).props("flat")
+                    ui.button("Delete All", on_click=lambda: (
+                        session.query(PhoneNumber).delete(),
+                        session.commit(),
+                        dlg.close(),
+                        refresh_numbers(),
+                        ui.notify(f"Deleted {total} numbers", type="warning"),
+                    )).props("color=red")
+            dlg.open()
 
         def refresh_numbers():
             numbers_container.clear()
