@@ -277,10 +277,28 @@ def render_site_manager():
                                     ui.icon("info").classes("text-orange text-2xl")
                                     ui.label("ISP Metrics Unavailable").classes("text-lg font-semibold")
                                 ui.label(metrics["error"]).classes("text-sm text-gray-500 mt-2")
+
+                                ui.separator().classes("my-3")
+                                ui.label("Version Requirements:").classes("text-sm font-semibold")
+                                ui.label("• UniFi Network Application: 8.3.32 or newer").classes("text-sm")
+                                ui.label("• UniFi Site Manager: 3.44.1 or newer").classes("text-sm")
+
+                                # Show current versions from hosts
+                                ui.separator().classes("my-3")
+                                ui.label("Your Current Versions:").classes("text-sm font-semibold")
+                                try:
+                                    hosts = fetch_hosts()
+                                    for host in hosts:
+                                        state = host.get("reportedState", {})
+                                        host_name = state.get("hostname") or host.get("id", "Unknown")
+                                        fw_version = state.get("firmwareVersion") or "Unknown"
+                                        ui.label(f"• {host_name}: {fw_version}").classes("text-sm font-mono")
+                                except Exception:
+                                    ui.label("• Could not fetch host versions").classes("text-sm text-gray-400")
+
                                 ui.label(
-                                    "To enable: sign in at unifi.ui.com → Settings → "
-                                    "enable Early Access, then try again."
-                                ).classes("text-xs text-gray-400 mt-1")
+                                    "Update your UniFi controller to meet the minimum versions above."
+                                ).classes("text-xs text-gray-400 mt-2")
                             return
 
                         # Display as formatted JSON or key-value pairs
