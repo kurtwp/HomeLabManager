@@ -6,13 +6,11 @@ Resolves MAC addresses to manufacturer names using the IEEE OUI database.
 from mac_vendor_lookup import MacLookup, InvalidMacError, VendorNotFoundError
 
 
-# Initialize the lookup object (downloads/caches OUI database on first use)
+# Initialize the lookup object (uses cached OUI database)
 _mac_lookup = MacLookup()
 
-try:
-    _mac_lookup.update_vendors()
-except Exception:
-    pass  # Use cached data if update fails
+# Don't auto-update on import — use cached data (update manually if needed)
+# To update: python -c "from mac_vendor_lookup import MacLookup; MacLookup().update_vendors()"
 
 
 def lookup_manufacturer(mac_address: str) -> str | None:
