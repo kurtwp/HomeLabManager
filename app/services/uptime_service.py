@@ -34,6 +34,25 @@ def remove_monitor(session: Session, monitor_id: int) -> bool:
     return True
 
 
+def update_monitor(session: Session, monitor_id: int, name: str | None = None,
+                   ip_address: str | None = None, check_interval: int | None = None,
+                   is_enabled: bool | None = None) -> MonitoredHost | None:
+    """Update an existing monitored host."""
+    host = session.query(MonitoredHost).filter(MonitoredHost.id == monitor_id).first()
+    if not host:
+        return None
+    if name is not None:
+        host.name = name
+    if ip_address is not None:
+        host.ip_address = ip_address
+    if check_interval is not None:
+        host.check_interval = check_interval
+    if is_enabled is not None:
+        host.is_enabled = is_enabled
+    session.commit()
+    return host
+
+
 def get_all_monitors(session: Session) -> list[MonitoredHost]:
     """Get all monitored hosts."""
     return session.query(MonitoredHost).order_by(MonitoredHost.name).all()

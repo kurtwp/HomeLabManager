@@ -6,6 +6,7 @@ from app.database.db import get_session_direct as get_session
 from app.services.uptime_service import (
     add_monitor,
     remove_monitor,
+    update_monitor,
     get_all_monitors,
     get_events_for_host,
     check_host,
@@ -141,6 +142,11 @@ def render_uptime():
                                 ).tooltip("Quick check now")
 
                                 ui.button(
+                                    icon="edit",
+                                    on_click=lambda h=host: open_edit_dialog(h),
+                                ).props("flat round size=sm color=blue").tooltip("Edit monitor")
+
+                                ui.button(
                                     icon="delete",
                                     on_click=lambda h=host: confirm_remove(h),
                                 ).props("flat round size=sm color=red")
@@ -163,6 +169,38 @@ def render_uptime():
                                             ui.label(event.details).classes("text-xs text-gray-500")
                                         if event.latency_ms:
                                             ui.label(f"{event.latency_ms:.1f}ms").classes("text-xs text-gray-400")
+
+        def open_edit_dialog(host):
+            with ui.dialog() as edit_dlg, ui.card().classes("w-96"):
+                ui.label(f"Edit Monitor: {host.name}").classes("text-xl font-bold mb-2")
+                edit_name = ui.input("Name *", value=host.name).classes("w-full")
+                edit_ip = ui.input("IP Address *", value=host.ip_address).classes("w-full")
+                edit_interval = ui.select(
+                    {30: "Every 30 seconds", 60: "Every minute", 120: "Every 2 minutes", 300: "Every 5 minutes"},
+                    value=host.check_interval, label="Check Interval",
+                ).classes("w-full")
+                edit_enabled = ui.switch("Enabled", value=host.is_enabled)
+
+                def save_edit():
+                    if not edit_name.value or not edit_ip.value:
+                        ui.notify("Name and IP are required", type="warning")
+                        return
+                    update_monitor(
+                        session,
+                        host.id,
+                        name=edit_name.value.strip(),
+                        ip_address=edit_ip.value.strip(),
+                        check_interval=edit_interval.value,
+                        is_enabled=edit_enabled.value,
+                    )
+                    ui.notify(f"Updated '{edit_name.value}'", type="positive")
+                    edit_dlg.close()
+                    refresh_monitors()
+
+                with ui.row().classes("justify-end gap-2 mt-2"):
+                    ui.button("Cancel", on_click=edit_dlg.close).props("flat")
+                    ui.button("Save", on_click=save_edit).props("color=primary")
+            edit_dlg.open()
 
         def confirm_remove(host):
             with ui.dialog() as dlg, ui.card():
