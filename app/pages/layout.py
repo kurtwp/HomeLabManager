@@ -88,6 +88,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Nmap Scanner", lambda: ui.navigate.to("/nmap"))
                     ui.menu_item("Ping Scan", lambda: ui.navigate.to("/ping-scan"))
                     ui.separator()
+                    ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
                     ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
 
             ui.link("Import/Export", "/import-export").classes("nav-link")

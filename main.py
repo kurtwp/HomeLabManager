@@ -32,6 +32,7 @@ from app.pages.pstn.customers import render_customers, render_customer_detail
 from app.pages.pstn.audit import render_pstn_audit
 from app.pages.pstn.bulk_import import render_bulk_import
 from app.pages.pstn.export import render_pstn_export
+from app.pages.uptime_page import render_uptime
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -43,6 +44,11 @@ with get_session() as session:
 
 # Start background scheduler for automatic scans
 start_scheduler()
+
+# Add uptime monitoring job (runs every 30 seconds)
+from app.services.scheduler import scheduler
+from app.services.uptime_service import run_checks
+scheduler.add_job(run_checks, "interval", seconds=30, id="uptime_checks", replace_existing=True)
 
 
 # --- Page routes ---
@@ -364,6 +370,11 @@ def ping_scan_page():
 @ui.page("/site-manager")
 def site_manager_page():
     render_site_manager()
+
+
+@ui.page("/uptime")
+def uptime_page():
+    render_uptime()
 
 
 # --- PSTN / Telephony routes ---

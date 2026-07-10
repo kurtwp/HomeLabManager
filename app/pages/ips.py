@@ -251,7 +251,15 @@ def render_ip_detail(ip_id: int):
             with ui.card().classes("w-80"):
                 ui.label("Details").classes("text-lg font-semibold mb-2")
                 ui.label(f"Hostname: {ip.hostname or '—'}")
-                ui.label(f"MAC: {ip.mac_address or '—'}")
+
+                # MAC with manufacturer lookup
+                mac_display = ip.mac_address or "—"
+                if ip.mac_address:
+                    from app.services.oui_service import lookup_manufacturer
+                    manufacturer = lookup_manufacturer(ip.mac_address)
+                    if manufacturer:
+                        mac_display = f"{ip.mac_address} ({manufacturer})"
+                ui.label(f"MAC: {mac_display}")
                 ui.label(f"Network: {ip.network.name if ip.network else '—'}")
                 ui.label(f"Last Seen: {format_timestamp(ip.last_seen)}")
                 ui.label(f"Created: {format_timestamp(ip.created_at)}")
