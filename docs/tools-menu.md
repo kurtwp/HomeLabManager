@@ -10,6 +10,7 @@ The **wrench icon** (🔧) in the top-right corner of the navigation bar opens a
 | Reports | `/reports` | Charts and analytics |
 | Locations | `/locations` | Physical device location tracking |
 | Custom Fields | `/custom-fields` | Extend entity data with custom attributes |
+| Notifications | `/notifications` | Alert settings, test, and history |
 
 ---
 
@@ -161,4 +162,5 @@ The main Custom Fields page shows a table of all defined fields, filterable by e
 - Check Reports periodically to catch subnets that are running low on space
 - The Locations page is great for generating a quick physical inventory map
 - Custom fields are powerful for tracking site-specific metadata without modifying code
+- Configure Notifications to get alerted when hosts go down or firmware updates are available
 - All tools in this menu are read-only or configuration-only — they don't modify your core network/IP/device data
