@@ -291,15 +291,29 @@ def render_site_manager():
                                     for host in hosts:
                                         state = host.get("reportedState", {})
                                         host_name = state.get("hostname") or host.get("id", "Unknown")
-                                        os_version = state.get("version") or "Unknown"
                                         # Get Network app version from controllers
                                         network_ver = "Unknown"
+                                        os_ver = "Unknown"
                                         for ctrl in state.get("controllers", []):
                                             if ctrl.get("name") == "network":
                                                 network_ver = ctrl.get("version") or "Unknown"
                                                 break
+                                        # Get OS version from firmware update info or device list
+                                        fw_update = state.get("firmwareUpdate", {})
+                                        if isinstance(fw_update, dict):
+                                            os_ver = fw_update.get("currentVersion") or "Unknown"
+                                        # Fallback: use device firmware from Site Manager devices list
+                                        if os_ver == "Unknown":
+                                            try:
+                                                current_devs, _ = fetch_devices()
+                                                for dev in current_devs:
+                                                    if dev.get("_hostName") == host_name and dev.get("isConsole"):
+                                                        os_ver = dev.get("version") or "Unknown"
+                                                        break
+                                            except Exception:
+                                                pass
                                         ui.label(
-                                            f"• {host_name}: UniFi OS {os_version}, Network App {network_ver}"
+                                            f"• {host_name}: Network App {network_ver}, UniFi OS {os_ver}"
                                         ).classes("text-sm font-mono")
                                 except Exception:
                                     ui.label("• Could not fetch host versions").classes("text-sm text-gray-400")
