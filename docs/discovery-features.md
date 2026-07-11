@@ -166,14 +166,31 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 - Each host has its own configurable check interval (30s, 1m, 2m, 5m)
 - Tracks status transitions (up → down, down → up/recovered)
 - Logs events with timestamps
+- Records every ping result (latency + status) for historical graphing
 
 **Features:**
 - Add hosts by name + IP + check interval
-- Dashboard shows: green/red status cards, uptime %, total checks, last check time
-- Summary badges: X Up, X Down
+- Edit monitors (name, IP, interval, enable/disable)
+- Dashboard widget shows up/down counts (clickable → uptime page)
+- Summary badges: X Up, X Down — clickable to filter the list
 - Quick check button — instant ping test per host
 - Event history per host (collapsible) — shows when hosts went down/recovered
 - Remove monitoring with confirmation
+- Notifications — automatic alerts when hosts go down or recover
+
+**Detail Page** (click any host card → `/uptime/{id}`):
+- **Heartbeat bar** — visual row of colored blocks showing recent check results (green = up, red = down)
+- **Stats row:**
+  - Ping (Current) — latest latency in ms
+  - Avg. Ping (24-hour) — average latency over 24 hours
+  - Uptime (24-hour) — percentage over last 24 hours
+  - Uptime (30-day) — percentage over last 30 days
+- **Response time chart** — ECharts line graph of latency over time:
+  - Selectable time range: 1h, 3h, 6h, 12h, 24h
+  - Green line with shaded area
+  - Red shaded zones marking downtime periods
+  - Dashed average latency reference line
+- **Recent events** — status changes with timestamps and details
 
 **Metrics Tracked:**
 - Current status (up/down/unknown)
@@ -181,6 +198,7 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 - Consecutive failures
 - Last seen up / last seen down timestamps
 - Total check count
+- Per-check latency history (stored in ping_results table)
 
 ---
 
