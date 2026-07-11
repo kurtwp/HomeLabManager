@@ -163,20 +163,30 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 
 **How it works:**
 - Background scheduler pings all monitored hosts every 30 seconds
-- Each host has its own configurable check interval (30s, 1m, 2m, 5m)
+- Each host has its own configurable check interval (20s–10m)
+- Configurable retries and retry interval before marking a host as down
 - Tracks status transitions (up → down, down → up/recovered)
 - Logs events with timestamps
 - Records every ping result (latency + status) for historical graphing
 
+**Monitoring Profiles (Presets):**
+
+| Profile | Heartbeat Interval | Retries | Retry Interval | Time to Alert |
+|---------|-------------------|---------|----------------|---------------|
+| Standard / Internal Devices | 60 seconds | 3 | 30 seconds | ~90 seconds |
+| Critical Infrastructure | 30 seconds | 2 | 10 seconds | ~20 seconds |
+| Non-Critical / IoT Devices | 300 seconds (5 min) | 3 | 60 seconds | ~3 minutes |
+| Custom | User-defined | User-defined | User-defined | Varies |
+
 **Features:**
-- Add hosts by name + IP + check interval
-- Edit monitors (name, IP, interval, enable/disable)
+- Add hosts with preset profiles or fully custom timing values
+- Edit monitors (name, IP, interval, retries, retry interval, enable/disable)
 - Dashboard widget shows up/down counts (clickable → uptime page)
 - Summary badges: X Up, X Down — clickable to filter the list
 - Quick check button — instant ping test per host
 - Event history per host (collapsible) — shows when hosts went down/recovered
 - Remove monitoring with confirmation
-- Notifications — automatic alerts when hosts go down or recover
+- Notifications — automatic alerts when hosts go down or recover (only after retries exhausted)
 
 **Detail Page** (click any host card → `/uptime/{id}`):
 - **Heartbeat bar** — visual row of colored blocks showing recent check results (green = up, red = down)
@@ -196,6 +206,7 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 - Current status (up/down/unknown)
 - Uptime percentage (total_up / total_checks × 100)
 - Consecutive failures
+- Max retries and retry interval per host
 - Last seen up / last seen down timestamps
 - Total check count
 - Per-check latency history (stored in ping_results table)

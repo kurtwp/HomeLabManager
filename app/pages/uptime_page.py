@@ -173,15 +173,38 @@ def render_uptime():
                                             ui.label(f"{event.latency_ms:.1f}ms").classes("text-xs text-gray-400")
 
         def open_edit_dialog(host):
-            with ui.dialog() as edit_dlg, ui.card().classes("w-96"):
+            with ui.dialog() as edit_dlg, ui.card().classes("w-[450px]"):
                 ui.label(f"Edit Monitor: {host.name}").classes("text-xl font-bold mb-2")
                 edit_name = ui.input("Name *", value=host.name).classes("w-full")
                 edit_ip = ui.input("IP Address *", value=host.ip_address).classes("w-full")
                 edit_interval = ui.select(
-                    {30: "Every 30 seconds", 60: "Every minute", 120: "Every 2 minutes", 300: "Every 5 minutes"},
-                    value=host.check_interval, label="Check Interval",
+                    {20: "20 seconds", 30: "30 seconds", 60: "60 seconds", 120: "2 minutes", 300: "5 minutes", 600: "10 minutes"},
+                    value=host.check_interval, label="Heartbeat Interval",
+                ).classes("w-full")
+                edit_retries = ui.select(
+                    {1: "1 retry", 2: "2 retries", 3: "3 retries", 4: "4 retries", 5: "5 retries"},
+                    value=getattr(host, 'max_retries', 3) or 3, label="Retries before Alert",
+                ).classes("w-full")
+                edit_retry_interval = ui.select(
+                    {5: "5 seconds", 10: "10 seconds", 20: "20 seconds", 30: "30 seconds", 60: "60 seconds"},
+                    value=getattr(host, 'retry_interval', 30) or 30, label="Retry Interval",
                 ).classes("w-full")
                 edit_enabled = ui.switch("Enabled", value=host.is_enabled)
+
+                # Info summary
+                with ui.row().classes("w-full mt-2 gap-2"):
+                    ui.icon("info").classes("text-blue text-sm")
+                    edit_info = ui.label("").classes("text-xs text-gray-500")
+
+                def update_edit_info():
+                    retries = edit_retries.value or 3
+                    retry_int = edit_retry_interval.value or 30
+                    time_to_alert = retries * retry_int
+                    edit_info.text = f"~{time_to_alert}s to alert after failure"
+
+                edit_retries.on("update:model-value", lambda: update_edit_info())
+                edit_retry_interval.on("update:model-value", lambda: update_edit_info())
+                update_edit_info()
 
                 def save_edit():
                     if not edit_name.value or not edit_ip.value:
@@ -194,6 +217,8 @@ def render_uptime():
                         ip_address=edit_ip.value.strip(),
                         check_interval=edit_interval.value,
                         is_enabled=edit_enabled.value,
+                        max_retries=edit_retries.value,
+                        retry_interval=edit_retry_interval.value,
                     )
                     ui.notify(f"Updated '{edit_name.value}'", type="positive")
                     edit_dlg.close()
@@ -220,14 +245,71 @@ def render_uptime():
         refresh_monitors()
 
     # Add host dialog
-    with ui.dialog() as add_dialog, ui.card().classes("w-96"):
+    with ui.dialog() as add_dialog, ui.card().classes("w-[450px]"):
         ui.label("Add Monitored Host").classes("text-xl font-bold mb-2")
         add_name = ui.input("Name *", placeholder="e.g. Main Server").classes("w-full")
         add_ip = ui.input("IP Address *", placeholder="192.168.2.5").classes("w-full")
-        add_interval = ui.select(
-            {30: "Every 30 seconds", 60: "Every minute", 120: "Every 2 minutes", 300: "Every 5 minutes"},
-            value=60, label="Check Interval",
-        ).classes("w-full")
+
+        # Preset selector
+        ui.label("Monitoring Profile").classes("text-sm font-semibold mt-2")
+        PRESETS = {
+            "standard": {"label": "Standard / Internal Devices", "interval": 60, "retries": 3, "retry_interval": 30},
+            "critical": {"label": "Critical Infrastructure", "interval": 30, "retries": 2, "retry_interval": 10},
+            "iot": {"label": "Non-Critical / IoT Devices", "interval": 300, "retries": 3, "retry_interval": 60},
+            "custom": {"label": "Custom", "interval": 60, "retries": 3, "retry_interval": 30},
+        }
+        preset_options = {k: v["label"] for k, v in PRESETS.items()}
+        add_preset = ui.select(preset_options, value="standard", label="Profile").classes("w-full")
+
+        # Custom fields (shown/hidden based on preset)
+        with ui.column().classes("w-full gap-2") as custom_fields_add:
+            add_interval = ui.select(
+                {20: "20 seconds", 30: "30 seconds", 60: "60 seconds", 120: "2 minutes", 300: "5 minutes", 600: "10 minutes"},
+                value=60, label="Heartbeat Interval",
+            ).classes("w-full")
+            add_retries = ui.select(
+                {1: "1 retry", 2: "2 retries", 3: "3 retries", 4: "4 retries", 5: "5 retries"},
+                value=3, label="Retries before Alert",
+            ).classes("w-full")
+            add_retry_interval = ui.select(
+                {5: "5 seconds", 10: "10 seconds", 20: "20 seconds", 30: "30 seconds", 60: "60 seconds"},
+                value=30, label="Retry Interval",
+            ).classes("w-full")
+
+        def on_preset_change():
+            preset = PRESETS.get(add_preset.value, PRESETS["standard"])
+            if add_preset.value != "custom":
+                add_interval.value = preset["interval"]
+                add_retries.value = preset["retries"]
+                add_retry_interval.value = preset["retry_interval"]
+            custom_fields_add.visible = (add_preset.value == "custom")
+
+        add_preset.on("update:model-value", lambda: on_preset_change())
+        custom_fields_add.visible = False
+
+        # Info label showing effective settings
+        with ui.row().classes("w-full mt-2 gap-2"):
+            ui.icon("info").classes("text-blue text-sm")
+            add_info_label = ui.label("").classes("text-xs text-gray-500")
+
+        def update_info_label():
+            preset = PRESETS.get(add_preset.value, PRESETS["standard"])
+            if add_preset.value == "custom":
+                interval = add_interval.value
+                retries = add_retries.value
+                retry_int = add_retry_interval.value
+            else:
+                interval = preset["interval"]
+                retries = preset["retries"]
+                retry_int = preset["retry_interval"]
+            time_to_alert = retries * retry_int
+            add_info_label.text = f"Check every {interval}s · {retries} retries @ {retry_int}s · ~{time_to_alert}s to alert"
+
+        add_preset.on("update:model-value", lambda: update_info_label())
+        add_interval.on("update:model-value", lambda: update_info_label())
+        add_retries.on("update:model-value", lambda: update_info_label())
+        add_retry_interval.on("update:model-value", lambda: update_info_label())
+        update_info_label()
 
         def save_new_monitor():
             if not add_name.value or not add_ip.value:
@@ -240,7 +322,19 @@ def render_uptime():
             if existing:
                 ui.notify("This IP is already being monitored", type="negative")
                 return
-            add_monitor(session, add_ip.value.strip(), add_name.value.strip(), add_interval.value)
+
+            preset = PRESETS.get(add_preset.value, PRESETS["standard"])
+            if add_preset.value == "custom":
+                interval = add_interval.value
+                retries = add_retries.value
+                retry_int = add_retry_interval.value
+            else:
+                interval = preset["interval"]
+                retries = preset["retries"]
+                retry_int = preset["retry_interval"]
+
+            add_monitor(session, add_ip.value.strip(), add_name.value.strip(),
+                       check_interval=interval, max_retries=retries, retry_interval=retry_int)
             ui.notify("Monitor added!", type="positive")
             add_dialog.close()
             refresh_monitors()

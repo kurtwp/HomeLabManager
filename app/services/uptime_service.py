@@ -10,12 +10,15 @@ from app.models.uptime_monitor import MonitoredHost, UptimeEvent, PingResult
 from app.database.db import SessionLocal
 
 
-def add_monitor(session: Session, ip_address: str, name: str, check_interval: int = 60) -> MonitoredHost:
+def add_monitor(session: Session, ip_address: str, name: str, check_interval: int = 60,
+               max_retries: int = 3, retry_interval: int = 30) -> MonitoredHost:
     """Add a new host to uptime monitoring."""
     host = MonitoredHost(
         ip_address=ip_address,
         name=name,
         check_interval=check_interval,
+        max_retries=max_retries,
+        retry_interval=retry_interval,
     )
     session.add(host)
     session.commit()
@@ -36,7 +39,8 @@ def remove_monitor(session: Session, monitor_id: int) -> bool:
 
 def update_monitor(session: Session, monitor_id: int, name: str | None = None,
                    ip_address: str | None = None, check_interval: int | None = None,
-                   is_enabled: bool | None = None) -> MonitoredHost | None:
+                   is_enabled: bool | None = None, max_retries: int | None = None,
+                   retry_interval: int | None = None) -> MonitoredHost | None:
     """Update an existing monitored host."""
     host = session.query(MonitoredHost).filter(MonitoredHost.id == monitor_id).first()
     if not host:
@@ -49,6 +53,10 @@ def update_monitor(session: Session, monitor_id: int, name: str | None = None,
         host.check_interval = check_interval
     if is_enabled is not None:
         host.is_enabled = is_enabled
+    if max_retries is not None:
+        host.max_retries = max_retries
+    if retry_interval is not None:
+        host.retry_interval = retry_interval
     session.commit()
     return host
 
@@ -196,26 +204,38 @@ def run_checks():
                     except Exception as notify_err:
                         print(f"Notification error (recovery): {notify_err}")
             else:
-                host.current_status = "down"
                 host.consecutive_failures += 1
                 host.last_seen_down = now
 
-                # Log down event (only on first failure or every 10th)
-                if previous_status != "down" or host.consecutive_failures == 1:
-                    event = UptimeEvent(
-                        host_id=host.id,
-                        event_type="down",
-                        details=f"Host not responding (failure #{host.consecutive_failures})",
-                    )
-                    session.add(event)
+                # Only mark as fully "down" after max_retries consecutive failures
+                max_retries = host.max_retries if hasattr(host, 'max_retries') and host.max_retries else 3
 
-                    # Send down notification
-                    try:
-                        from app.services.notification_service import notify_host_down, is_notifications_enabled
-                        if is_notifications_enabled():
-                            notify_host_down(host.name, host.ip_address, host.consecutive_failures)
-                    except Exception as notify_err:
-                        print(f"Notification error (down): {notify_err}")
+                if host.consecutive_failures >= max_retries:
+                    # Confirmed down — mark status and notify
+                    if previous_status != "down":
+                        host.current_status = "down"
+                        event = UptimeEvent(
+                            host_id=host.id,
+                            event_type="down",
+                            details=f"Host not responding after {host.consecutive_failures} retries",
+                        )
+                        session.add(event)
+
+                        # Send down notification
+                        try:
+                            from app.services.notification_service import notify_host_down, is_notifications_enabled
+                            if is_notifications_enabled():
+                                notify_host_down(host.name, host.ip_address, host.consecutive_failures)
+                        except Exception as notify_err:
+                            print(f"Notification error (down): {notify_err}")
+                    else:
+                        host.current_status = "down"
+                else:
+                    # Still in retry phase — use retry_interval for next check timing
+                    # Override last_check to trigger a faster recheck
+                    retry_interval = host.retry_interval if hasattr(host, 'retry_interval') and host.retry_interval else 30
+                    from datetime import timedelta
+                    host.last_check = now - timedelta(seconds=(host.check_interval - retry_interval))
 
         session.commit()
     except Exception as e:

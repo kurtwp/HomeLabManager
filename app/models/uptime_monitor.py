@@ -16,6 +16,8 @@ class MonitoredHost(Base):
     ip_address: Mapped[str] = mapped_column(String(45), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     check_interval: Mapped[int] = mapped_column(Integer, default=60)  # seconds
+    max_retries: Mapped[int] = mapped_column(Integer, default=3)  # retries before alerting
+    retry_interval: Mapped[int] = mapped_column(Integer, default=30)  # seconds between retries
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     current_status: Mapped[str] = mapped_column(String(20), default="unknown")  # up, down, unknown
     last_check: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
