@@ -30,9 +30,32 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 def init_db():
-    """Create all tables defined in models."""
+    """Create all tables defined in models, and migrate existing tables."""
     import app.models  # noqa: F401 — ensure all models are imported
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
+
+
+def _run_migrations():
+    """Add missing columns to existing tables (SQLite doesn't auto-alter)."""
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(engine)
+
+    # Define migrations: (table_name, column_name, column_sql)
+    migrations = [
+        ("monitored_hosts", "max_retries", "INTEGER DEFAULT 3"),
+        ("monitored_hosts", "retry_interval", "INTEGER DEFAULT 30"),
+    ]
+
+    with engine.connect() as conn:
+        for table, column, col_type in migrations:
+            if table in inspector.get_table_names():
+                existing_columns = [c["name"] for c in inspector.get_columns(table)]
+                if column not in existing_columns:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    print(f"  Migration: added {table}.{column}")
+        conn.commit()
 
 
 from contextlib import contextmanager
