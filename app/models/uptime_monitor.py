@@ -54,3 +54,21 @@ class UptimeEvent(Base):
 
     def __repr__(self) -> str:
         return f"<UptimeEvent(host={self.host_id} type={self.event_type})>"
+
+
+
+class PingResult(Base):
+    """Stores every ping check result for latency history and graphing."""
+
+    __tablename__ = "ping_results"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    host_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    is_up: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<PingResult(host={self.host_id} up={self.is_up} latency={self.latency_ms})>"

@@ -115,7 +115,9 @@ def render_uptime():
 
                     with ui.card().classes("w-full"):
                         with ui.row().classes("w-full items-center justify-between"):
-                            with ui.row().classes("items-center gap-3"):
+                            with ui.row().classes("items-center gap-3 cursor-pointer").on(
+                                "click", lambda h=host: ui.navigate.to(f"/uptime/{h.id}")
+                            ):
                                 ui.icon(status_icon).classes(f"text-2xl text-{status_color}")
                                 with ui.column().classes("gap-0"):
                                     ui.label(host.name).classes("font-semibold text-lg")

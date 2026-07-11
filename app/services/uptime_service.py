@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models.uptime_monitor import MonitoredHost, UptimeEvent
+from app.models.uptime_monitor import MonitoredHost, UptimeEvent, PingResult
 from app.database.db import SessionLocal
 
 
@@ -74,6 +74,49 @@ def get_events_for_host(session: Session, host_id: int, limit: int = 50) -> list
     )
 
 
+def get_ping_history(session: Session, host_id: int, hours: int = 6) -> list[PingResult]:
+    """Get ping results for the last N hours for graphing."""
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    return (
+        session.query(PingResult)
+        .filter(PingResult.host_id == host_id, PingResult.timestamp >= cutoff)
+        .order_by(PingResult.timestamp.asc())
+        .all()
+    )
+
+
+def get_ping_stats(session: Session, host_id: int, hours: int = 24) -> dict:
+    """Calculate ping statistics for a host over the last N hours."""
+    from datetime import timedelta
+    from sqlalchemy import func
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    results = (
+        session.query(PingResult)
+        .filter(PingResult.host_id == host_id, PingResult.timestamp >= cutoff)
+        .all()
+    )
+
+    if not results:
+        return {"avg_latency": None, "min_latency": None, "max_latency": None,
+                "total_checks": 0, "up_checks": 0, "uptime_percent": 0.0}
+
+    latencies = [r.latency_ms for r in results if r.latency_ms is not None]
+    up_checks = sum(1 for r in results if r.is_up)
+    total = len(results)
+
+    return {
+        "avg_latency": round(sum(latencies) / len(latencies), 1) if latencies else None,
+        "min_latency": round(min(latencies), 1) if latencies else None,
+        "max_latency": round(max(latencies), 1) if latencies else None,
+        "current_latency": round(latencies[-1], 1) if latencies else None,
+        "total_checks": total,
+        "up_checks": up_checks,
+        "uptime_percent": round((up_checks / total) * 100, 2) if total > 0 else 0.0,
+    }
+
+
 def check_host(ip_address: str, timeout: int = 2) -> tuple[bool, float | None]:
     """
     Ping a host and return (is_up, latency_ms).
@@ -119,6 +162,15 @@ def run_checks():
 
             host.total_checks += 1
             host.last_check = now
+
+            # Store ping result for latency history/graphing
+            ping_record = PingResult(
+                host_id=host.id,
+                timestamp=now,
+                is_up=is_up,
+                latency_ms=latency,
+            )
+            session.add(ping_record)
 
             if is_up:
                 host.current_status = "up"

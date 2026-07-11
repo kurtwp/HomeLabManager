@@ -385,6 +385,12 @@ def uptime_page():
     render_uptime()
 
 
+@ui.page("/uptime/{monitor_id}")
+def uptime_detail_page(monitor_id: int):
+    from app.pages.uptime_detail import render_uptime_detail
+    render_uptime_detail(monitor_id)
+
+
 @ui.page("/help")
 def help_page():
     render_help()
