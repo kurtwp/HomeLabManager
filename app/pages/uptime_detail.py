@@ -140,21 +140,14 @@ def render_uptime_detail(monitor_id: int):
                     # Build chart data
                     timestamps = []
                     latencies = []
-                    down_markers = []
 
                     for ping in history:
-                        time_str = ping.timestamp.strftime("%H:%M") if ping.timestamp else ""
+                        time_str = ping.timestamp.strftime("%H:%M:%S") if ping.timestamp else ""
                         timestamps.append(time_str)
                         if ping.is_up and ping.latency_ms:
                             latencies.append(round(ping.latency_ms, 1))
                         else:
                             latencies.append(None)
-                        # Mark downtime
-                        if not ping.is_up:
-                            down_markers.append({
-                                "xAxis": time_str,
-                                "itemStyle": {"color": "rgba(239, 68, 68, 0.3)"},
-                            })
 
                     # Calculate average for reference line
                     valid_latencies = [l for l in latencies if l is not None]
@@ -163,21 +156,26 @@ def render_uptime_detail(monitor_id: int):
                         if valid_latencies else 0
                     )
 
-                    # Build markLine and markArea for downtime
+                    # Build markArea for downtime periods (red vertical bands)
                     mark_area_data = []
                     i = 0
                     while i < len(history):
                         if not history[i].is_up:
-                            start = history[i].timestamp.strftime("%H:%M") if history[i].timestamp else ""
-                            # Find end of downtime
+                            start_idx = i
+                            # Find end of downtime block
                             j = i
                             while j < len(history) and not history[j].is_up:
                                 j += 1
                             end_idx = j - 1
-                            end = history[end_idx].timestamp.strftime("%H:%M") if history[end_idx].timestamp else ""
+
+                            # Use index-based xAxis to ensure visibility even for single points
+                            # Extend single-point outages by 1 index to give them width
+                            start_ts = timestamps[start_idx]
+                            end_ts = timestamps[min(end_idx + 1, len(timestamps) - 1)] if end_idx == start_idx else timestamps[end_idx]
+
                             mark_area_data.append([
-                                {"xAxis": start, "itemStyle": {"color": "rgba(239, 68, 68, 0.15)"}},
-                                {"xAxis": end},
+                                {"xAxis": start_ts},
+                                {"xAxis": end_ts},
                             ])
                             i = j
                         else:
@@ -192,17 +190,21 @@ def render_uptime_detail(monitor_id: int):
                             "left": "60",
                             "right": "20",
                             "top": "30",
-                            "bottom": "40",
+                            "bottom": "50",
                         },
                         "xAxis": {
                             "type": "category",
                             "data": timestamps,
-                            "axisLabel": {"rotate": 0, "interval": max(1, len(timestamps) // 10)},
+                            "axisLabel": {
+                                "rotate": 0,
+                                "interval": max(1, len(timestamps) // 8),
+                                "formatter": "{value}",
+                            },
                         },
                         "yAxis": {
                             "type": "value",
                             "name": "Resp. Time (ms)",
-                            "min": "dataMin",
+                            "min": 0,
                         },
                         "series": [
                             {
@@ -212,20 +214,29 @@ def render_uptime_detail(monitor_id: int):
                                 "smooth": False,
                                 "symbol": "none",
                                 "lineStyle": {"color": "#22c55e", "width": 1.5},
-                                "areaStyle": {"color": "rgba(34, 197, 94, 0.1)"},
+                                "areaStyle": {"color": "rgba(34, 197, 94, 0.08)"},
                                 "connectNulls": False,
                                 "markLine": {
                                     "silent": True,
+                                    "symbol": ["none", "arrow"],
                                     "data": [
                                         {
                                             "yAxis": avg_latency,
-                                            "label": {"formatter": f"avg: {avg_latency}ms"},
-                                            "lineStyle": {"color": "#94a3b8", "type": "dashed"},
+                                            "label": {
+                                                "formatter": f"avg",
+                                                "position": "end",
+                                            },
+                                            "lineStyle": {"color": "#93c5fd", "type": "dashed", "width": 1},
                                         }
                                     ],
                                 },
                                 "markArea": {
                                     "silent": True,
+                                    "itemStyle": {
+                                        "color": "rgba(239, 68, 68, 0.25)",
+                                        "borderColor": "rgba(239, 68, 68, 0.6)",
+                                        "borderWidth": 1,
+                                    },
                                     "data": mark_area_data,
                                 } if mark_area_data else {},
                             }
