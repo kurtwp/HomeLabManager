@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=kpas
-Group=kpas
+User=yourusername
+Group=yourusergroup
 WorkingDirectory=/opt/HomeIPAdmin
 Environment="PATH=/opt/HomeIPAdmin/.venv/bin:/usr/bin:/bin"
 ExecStart=/opt/HomeIPAdmin/.venv/bin/python main.py
