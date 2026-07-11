@@ -32,5 +32,10 @@ dist/
 build/
 *.egg-info/
 
-#Misc
+# NiceGUI session storage
+.nicegui/
+
+# Misc
+NewFeasture.txt
 NewFeature.txt
+readmeBak.md
