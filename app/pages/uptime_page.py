@@ -130,6 +130,9 @@ def render_uptime():
                                 ui.label(
                                     f"Last: {host.last_check.strftime('%H:%M:%S') if host.last_check else 'Never'}"
                                 ).classes("text-xs text-gray-400")
+                                monitor_type = getattr(host, 'monitor_type', 'ping') or 'ping'
+                                if monitor_type == "port" and getattr(host, 'port', None):
+                                    ui.badge(f":{host.port}").props("color=teal outline").classes("text-xs")
                                 ui.label(f"Every {host.check_interval}s").classes("text-xs text-gray-400")
 
                                 # Quick check button
@@ -177,6 +180,20 @@ def render_uptime():
                 ui.label(f"Edit Monitor: {host.name}").classes("text-xl font-bold mb-2")
                 edit_name = ui.input("Name *", value=host.name).classes("w-full")
                 edit_ip = ui.input("IP Address *", value=host.ip_address).classes("w-full")
+
+                # Monitor type
+                edit_type = ui.select(
+                    {"ping": "Ping (ICMP)", "port": "TCP Port"},
+                    value=getattr(host, 'monitor_type', 'ping') or 'ping',
+                    label="Monitor Type",
+                ).classes("w-full")
+                edit_port = ui.input(
+                    "TCP Port", value=str(getattr(host, 'port', '') or ''),
+                    placeholder="e.g. 80, 443, 22"
+                ).classes("w-full")
+                edit_port.visible = (edit_type.value == "port")
+                edit_type.on("update:model-value", lambda: setattr(edit_port, 'visible', edit_type.value == "port"))
+
                 edit_interval = ui.select(
                     {20: "20 seconds", 30: "30 seconds", 60: "60 seconds", 120: "2 minutes", 300: "5 minutes", 600: "10 minutes"},
                     value=host.check_interval, label="Heartbeat Interval",
@@ -191,25 +208,14 @@ def render_uptime():
                 ).classes("w-full")
                 edit_enabled = ui.switch("Enabled", value=host.is_enabled)
 
-                # Info summary
-                with ui.row().classes("w-full mt-2 gap-2"):
-                    ui.icon("info").classes("text-blue text-sm")
-                    edit_info = ui.label("").classes("text-xs text-gray-500")
-
-                def update_edit_info():
-                    retries = edit_retries.value or 3
-                    retry_int = edit_retry_interval.value or 30
-                    time_to_alert = retries * retry_int
-                    edit_info.text = f"~{time_to_alert}s to alert after failure"
-
-                edit_retries.on("update:model-value", lambda: update_edit_info())
-                edit_retry_interval.on("update:model-value", lambda: update_edit_info())
-                update_edit_info()
-
                 def save_edit():
                     if not edit_name.value or not edit_ip.value:
                         ui.notify("Name and IP are required", type="warning")
                         return
+                    if edit_type.value == "port" and not edit_port.value:
+                        ui.notify("Port is required for TCP port monitoring", type="warning")
+                        return
+                    port_val = int(edit_port.value) if edit_port.value else None
                     update_monitor(
                         session,
                         host.id,
@@ -219,6 +225,8 @@ def render_uptime():
                         is_enabled=edit_enabled.value,
                         max_retries=edit_retries.value,
                         retry_interval=edit_retry_interval.value,
+                        monitor_type=edit_type.value,
+                        port=port_val,
                     )
                     ui.notify(f"Updated '{edit_name.value}'", type="positive")
                     edit_dlg.close()
@@ -249,6 +257,36 @@ def render_uptime():
         ui.label("Add Monitored Host").classes("text-xl font-bold mb-2")
         add_name = ui.input("Name *", placeholder="e.g. Main Server").classes("w-full")
         add_ip = ui.input("IP Address *", placeholder="192.168.2.5").classes("w-full")
+
+        # Monitor type
+        ui.label("Monitor Type").classes("text-sm font-semibold mt-2")
+        add_monitor_type = ui.select(
+            {"ping": "Ping (ICMP)", "port": "TCP Port"},
+            value="ping", label="Type",
+        ).classes("w-full")
+        add_port = ui.input("TCP Port", placeholder="e.g. 80, 443, 22, 3389").classes("w-full")
+        add_port.visible = False
+
+        # Common port shortcuts
+        port_shortcuts_row = ui.row().classes("gap-1 flex-wrap")
+        port_shortcuts_row.visible = False
+
+        def set_port(p):
+            add_port.value = str(p)
+
+        with port_shortcuts_row:
+            for p, label in [(80, "HTTP"), (443, "HTTPS"), (22, "SSH"), (53, "DNS"),
+                             (3389, "RDP"), (8080, "Alt HTTP"), (21, "FTP"), (25, "SMTP")]:
+                ui.button(f"{label}:{p}", on_click=lambda port=p: set_port(port)).props(
+                    "flat dense size=xs"
+                )
+
+        def on_type_change():
+            is_port = add_monitor_type.value == "port"
+            add_port.visible = is_port
+            port_shortcuts_row.visible = is_port
+
+        add_monitor_type.on("update:model-value", lambda: on_type_change())
 
         # Preset selector
         ui.label("Monitoring Profile").classes("text-sm font-semibold mt-2")
@@ -303,17 +341,22 @@ def render_uptime():
                 retries = preset["retries"]
                 retry_int = preset["retry_interval"]
             time_to_alert = retries * retry_int
-            add_info_label.text = f"Check every {interval}s · {retries} retries @ {retry_int}s · ~{time_to_alert}s to alert"
+            type_label = "TCP port" if add_monitor_type.value == "port" else "Ping"
+            add_info_label.text = f"{type_label} · Every {interval}s · {retries} retries @ {retry_int}s · ~{time_to_alert}s to alert"
 
         add_preset.on("update:model-value", lambda: update_info_label())
         add_interval.on("update:model-value", lambda: update_info_label())
         add_retries.on("update:model-value", lambda: update_info_label())
         add_retry_interval.on("update:model-value", lambda: update_info_label())
+        add_monitor_type.on("update:model-value", lambda: update_info_label())
         update_info_label()
 
         def save_new_monitor():
             if not add_name.value or not add_ip.value:
                 ui.notify("Name and IP are required", type="warning")
+                return
+            if add_monitor_type.value == "port" and not add_port.value:
+                ui.notify("Port number is required for TCP port monitoring", type="warning")
                 return
             # Check for duplicate
             existing = session.query(
@@ -333,8 +376,11 @@ def render_uptime():
                 retries = preset["retries"]
                 retry_int = preset["retry_interval"]
 
+            port_val = int(add_port.value) if add_port.value else None
+
             add_monitor(session, add_ip.value.strip(), add_name.value.strip(),
-                       check_interval=interval, max_retries=retries, retry_interval=retry_int)
+                       check_interval=interval, max_retries=retries, retry_interval=retry_int,
+                       monitor_type=add_monitor_type.value, port=port_val)
             ui.notify("Monitor added!", type="positive")
             add_dialog.close()
             refresh_monitors()

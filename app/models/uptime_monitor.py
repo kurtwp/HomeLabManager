@@ -15,6 +15,8 @@ class MonitoredHost(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     ip_address: Mapped[str] = mapped_column(String(45), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    monitor_type: Mapped[str] = mapped_column(String(20), default="ping")  # ping, port
+    port: Mapped[int | None] = mapped_column(Integer, nullable=True)  # TCP port to check (for port type)
     check_interval: Mapped[int] = mapped_column(Integer, default=60)  # seconds
     max_retries: Mapped[int] = mapped_column(Integer, default=3)  # retries before alerting
     retry_interval: Mapped[int] = mapped_column(Integer, default=30)  # seconds between retries

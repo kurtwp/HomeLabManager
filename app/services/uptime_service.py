@@ -11,7 +11,8 @@ from app.database.db import SessionLocal
 
 
 def add_monitor(session: Session, ip_address: str, name: str, check_interval: int = 60,
-               max_retries: int = 3, retry_interval: int = 30) -> MonitoredHost:
+               max_retries: int = 3, retry_interval: int = 30,
+               monitor_type: str = "ping", port: int | None = None) -> MonitoredHost:
     """Add a new host to uptime monitoring."""
     host = MonitoredHost(
         ip_address=ip_address,
@@ -19,6 +20,8 @@ def add_monitor(session: Session, ip_address: str, name: str, check_interval: in
         check_interval=check_interval,
         max_retries=max_retries,
         retry_interval=retry_interval,
+        monitor_type=monitor_type,
+        port=port,
     )
     session.add(host)
     session.commit()
@@ -40,7 +43,8 @@ def remove_monitor(session: Session, monitor_id: int) -> bool:
 def update_monitor(session: Session, monitor_id: int, name: str | None = None,
                    ip_address: str | None = None, check_interval: int | None = None,
                    is_enabled: bool | None = None, max_retries: int | None = None,
-                   retry_interval: int | None = None) -> MonitoredHost | None:
+                   retry_interval: int | None = None, monitor_type: str | None = None,
+                   port: int | None = None) -> MonitoredHost | None:
     """Update an existing monitored host."""
     host = session.query(MonitoredHost).filter(MonitoredHost.id == monitor_id).first()
     if not host:
@@ -57,6 +61,10 @@ def update_monitor(session: Session, monitor_id: int, name: str | None = None,
         host.max_retries = max_retries
     if retry_interval is not None:
         host.retry_interval = retry_interval
+    if monitor_type is not None:
+        host.monitor_type = monitor_type
+    if port is not None:
+        host.port = port
     session.commit()
     return host
 
@@ -143,6 +151,29 @@ def check_host(ip_address: str, timeout: int = 2) -> tuple[bool, float | None]:
     return False, None
 
 
+def check_port(ip_address: str, port: int, timeout: int = 3) -> tuple[bool, float | None]:
+    """
+    Check if a TCP port is open and return (is_up, response_time_ms).
+    """
+    import socket
+    import time
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        start = time.perf_counter()
+        result = sock.connect_ex((ip_address, port))
+        elapsed = (time.perf_counter() - start) * 1000  # ms
+        sock.close()
+
+        if result == 0:
+            return True, round(elapsed, 1)
+        else:
+            return False, None
+    except (socket.timeout, OSError):
+        return False, None
+
+
 def run_checks():
     """
     Run uptime checks on all enabled monitors.
@@ -165,7 +196,13 @@ def run_checks():
                 if elapsed < host.check_interval:
                     continue
 
-            is_up, latency = check_host(host.ip_address)
+            # Choose check method based on monitor type
+            monitor_type = getattr(host, 'monitor_type', 'ping') or 'ping'
+            if monitor_type == "port" and getattr(host, 'port', None):
+                is_up, latency = check_port(host.ip_address, host.port)
+            else:
+                is_up, latency = check_host(host.ip_address)
+
             previous_status = host.current_status
 
             host.total_checks += 1

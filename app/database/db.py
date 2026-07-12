@@ -46,6 +46,8 @@ def _run_migrations():
     migrations = [
         ("monitored_hosts", "max_retries", "INTEGER DEFAULT 3"),
         ("monitored_hosts", "retry_interval", "INTEGER DEFAULT 30"),
+        ("monitored_hosts", "monitor_type", "VARCHAR(20) DEFAULT 'ping'"),
+        ("monitored_hosts", "port", "INTEGER"),
     ]
 
     with engine.connect() as conn:

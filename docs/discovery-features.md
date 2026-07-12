@@ -180,13 +180,18 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 
 **Features:**
 - Add hosts with preset profiles or fully custom timing values
-- Edit monitors (name, IP, interval, retries, retry interval, enable/disable)
+- **Two monitor types:**
+  - **Ping (ICMP)** — standard host reachability check
+  - **TCP Port** — check if a specific service port is responding (HTTP, HTTPS, SSH, DNS, RDP, etc.)
+- Quick port shortcuts in the add dialog: HTTP:80, HTTPS:443, SSH:22, DNS:53, RDP:3389, and more
+- Edit monitors (name, IP, type, port, interval, retries, retry interval, enable/disable)
 - Dashboard widget shows up/down counts (clickable → uptime page)
 - Summary badges: X Up, X Down — clickable to filter the list
-- Quick check button — instant ping test per host
+- Quick check button — instant ping or port test per host
 - Event history per host (collapsible) — shows when hosts went down/recovered
 - Remove monitoring with confirmation
 - Notifications — automatic alerts when hosts go down or recover (only after retries exhausted)
+- Port badge shown on host cards for TCP port monitors
 
 **Detail Page** (click any host card → `/uptime/{id}`):
 - **Heartbeat bar** — visual row of colored blocks showing recent check results (green = up, red = down)
