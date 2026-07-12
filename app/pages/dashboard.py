@@ -57,59 +57,59 @@ def render_dashboard():
             _stat_card("UniFi Devices", str(unifi_devices), "router", "purple")
             _stat_card("Other Devices", str(other_devices), "devices_other", "teal")
 
-        # Uptime Monitor summary (ping only)
+        # Uptime Monitor + Port Monitor summary (side by side)
         monitors = session.query(MonitoredHost).filter(MonitoredHost.is_enabled == True).all()
         ping_monitors = [m for m in monitors if (getattr(m, 'monitor_type', 'ping') or 'ping') == 'ping']
         port_monitors = [m for m in monitors if (getattr(m, 'monitor_type', 'ping') or 'ping') == 'port']
 
-        if ping_monitors:
-            up_count = sum(1 for m in ping_monitors if m.current_status == "up")
-            down_count = sum(1 for m in ping_monitors if m.current_status == "down")
-            unknown_count = sum(1 for m in ping_monitors if m.current_status == "unknown")
-            total_monitored = len(ping_monitors)
+        with ui.row().classes("w-full gap-4"):
+            if ping_monitors:
+                up_count = sum(1 for m in ping_monitors if m.current_status == "up")
+                down_count = sum(1 for m in ping_monitors if m.current_status == "down")
+                unknown_count = sum(1 for m in ping_monitors if m.current_status == "unknown")
+                total_monitored = len(ping_monitors)
 
-            with ui.card().classes("w-full cursor-pointer").on(
-                "click", lambda: ui.navigate.to("/uptime")
-            ):
-                with ui.row().classes("w-full items-center justify-between"):
-                    with ui.row().classes("items-center gap-3"):
-                        ui.icon("monitor_heart").classes("text-3xl text-indigo")
-                        ui.label("Uptime Monitor").classes("text-lg font-semibold")
-                    with ui.row().classes("items-center gap-4"):
-                        ui.badge(f"🟢 {up_count} Up").props("color=green")
-                        if down_count:
-                            ui.badge(f"🔴 {down_count} Down").props("color=red")
-                        if unknown_count:
-                            ui.badge(f"⚪ {unknown_count} Unknown").props("color=gray")
-                        ui.label(f"{total_monitored} monitored").classes(
-                            "text-sm text-gray-500"
-                        )
-                        ui.icon("arrow_forward").classes("text-gray-400")
+                with ui.card().classes("flex-1 cursor-pointer").on(
+                    "click", lambda: ui.navigate.to("/uptime")
+                ):
+                    with ui.row().classes("w-full items-center justify-between"):
+                        with ui.row().classes("items-center gap-3"):
+                            ui.icon("monitor_heart").classes("text-3xl text-indigo")
+                            ui.label("Uptime Monitor").classes("text-lg font-semibold")
+                        with ui.row().classes("items-center gap-4"):
+                            ui.badge(f"🟢 {up_count} Up").props("color=green")
+                            if down_count:
+                                ui.badge(f"🔴 {down_count} Down").props("color=red")
+                            if unknown_count:
+                                ui.badge(f"⚪ {unknown_count} Unknown").props("color=gray")
+                            ui.label(f"{total_monitored} monitored").classes(
+                                "text-sm text-gray-500"
+                            )
+                            ui.icon("arrow_forward").classes("text-gray-400")
 
-        # Port Monitor summary
-        if port_monitors:
-            port_up = sum(1 for m in port_monitors if m.current_status == "up")
-            port_down = sum(1 for m in port_monitors if m.current_status == "down")
-            port_unknown = sum(1 for m in port_monitors if m.current_status == "unknown")
-            total_ports = len(port_monitors)
+            if port_monitors:
+                port_up = sum(1 for m in port_monitors if m.current_status == "up")
+                port_down = sum(1 for m in port_monitors if m.current_status == "down")
+                port_unknown = sum(1 for m in port_monitors if m.current_status == "unknown")
+                total_ports = len(port_monitors)
 
-            with ui.card().classes("w-full cursor-pointer").on(
-                "click", lambda: ui.navigate.to("/port-monitor")
-            ):
-                with ui.row().classes("w-full items-center justify-between"):
-                    with ui.row().classes("items-center gap-3"):
-                        ui.icon("lan").classes("text-3xl text-teal")
-                        ui.label("Port Monitor").classes("text-lg font-semibold")
-                    with ui.row().classes("items-center gap-4"):
-                        ui.badge(f"🟢 {port_up} Up").props("color=green")
-                        if port_down:
-                            ui.badge(f"🔴 {port_down} Down").props("color=red")
-                        if port_unknown:
-                            ui.badge(f"⚪ {port_unknown} Unknown").props("color=gray")
-                        ui.label(f"{total_ports} services").classes(
-                            "text-sm text-gray-500"
-                        )
-                        ui.icon("arrow_forward").classes("text-gray-400")
+                with ui.card().classes("flex-1 cursor-pointer").on(
+                    "click", lambda: ui.navigate.to("/port-monitor")
+                ):
+                    with ui.row().classes("w-full items-center justify-between"):
+                        with ui.row().classes("items-center gap-3"):
+                            ui.icon("lan").classes("text-3xl text-teal")
+                            ui.label("Port Monitor").classes("text-lg font-semibold")
+                        with ui.row().classes("items-center gap-4"):
+                            ui.badge(f"🟢 {port_up} Up").props("color=green")
+                            if port_down:
+                                ui.badge(f"🔴 {port_down} Down").props("color=red")
+                            if port_unknown:
+                                ui.badge(f"⚪ {port_unknown} Unknown").props("color=gray")
+                            ui.label(f"{total_ports} services").classes(
+                                "text-sm text-gray-500"
+                            )
+                            ui.icon("arrow_forward").classes("text-gray-400")
 
         # IP/MAC Conflict Detection
         conflicts = detect_all_conflicts(session)
