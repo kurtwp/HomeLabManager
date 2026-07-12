@@ -109,6 +109,10 @@ def render_dashboard():
                         ui.label(f"...and {conflicts['total'] - 6} more").classes(
                             "text-xs text-gray-400"
                         )
+        else:
+            with ui.row().classes("w-full items-center gap-2"):
+                ui.icon("check_circle").classes("text-green")
+                ui.label("No IP or MAC conflicts detected").classes("text-sm text-green")
 
         # Source breakdown
         if source_counts:
