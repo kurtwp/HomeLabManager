@@ -4,7 +4,7 @@ The **Tags** tab lets you create and manage color-coded labels that can be appli
 
 ## Accessing the Tags Tab
 
-Click **Tags** in the top navigation bar, or navigate to `/tags`.
+Click the **wrench icon** (🔧) in the top-right → **Tags**, or navigate to `/tags`.
 
 ## Tag List
 

@@ -6,12 +6,14 @@ The **wrench icon** (🔧) in the top-right corner of the navigation bar opens a
 
 | Item | Route | Purpose |
 |------|-------|---------|
+| Tags | `/tags` | Create and manage color-coded labels |
 | Calculator | `/calculator` | IP subnet calculator |
 | Reports | `/reports` | Charts and analytics |
 | Locations | `/locations` | Physical device location tracking |
 | Custom Fields | `/custom-fields` | Extend entity data with custom attributes |
 | Notifications | `/notifications` | Alert settings, test, and history |
 | Settings | `/settings` | Edit .env configuration from the UI |
+| Backup & Restore | `/backup` | Database backup and restore |
 
 ---
 
