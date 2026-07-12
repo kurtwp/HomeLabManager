@@ -28,8 +28,22 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("Dashboard", "/").classes("nav-link")
             ui.link("Networks", "/networks").classes("nav-link")
 
+            # Discovery dropdown (UniFi, SNMP, Nmap, Ping, Scheduler)
+            with ui.button("Discovery").props("flat color=white no-caps"):
+                with ui.menu():
+                    ui.menu_item("UniFi Sync (Local)", lambda: ui.navigate.to("/unifi"))
+                    ui.menu_item("Site Manager (Cloud)", lambda: ui.navigate.to("/site-manager"))
+                    ui.separator()
+                    ui.menu_item("SNMP Discovery", lambda: ui.navigate.to("/snmp"))
+                    ui.menu_item("Nmap Scanner", lambda: ui.navigate.to("/nmap"))
+                    ui.menu_item("Ping Scan", lambda: ui.navigate.to("/ping-scan"))
+                    ui.separator()
+                    ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
+                    ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
+                    ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
+
             # Devices dropdown — dynamically shows types that have devices
-            with ui.button("Devices", icon="devices").props("flat color=white no-caps"):
+            with ui.button("Devices").props("flat color=white no-caps"):
                 with ui.menu():
                     ui.menu_item("All Devices", lambda: ui.navigate.to("/devices"))
                     ui.separator()
@@ -63,10 +77,9 @@ def page_layout(title: str = "Home Lab Manager"):
 
             ui.link("IPs", "/ips").classes("nav-link")
             ui.link("Docs", "/docs").classes("nav-link")
-            ui.link("Tags", "/tags").classes("nav-link")
 
             # Telephony dropdown
-            with ui.button("Telephony", icon="phone").props("flat color=white no-caps"):
+            with ui.button("Telephony").props("flat color=white no-caps"):
                 with ui.menu():
                     ui.menu_item("Dashboard", lambda: ui.navigate.to("/pstn"))
                     ui.menu_item("Number Ranges", lambda: ui.navigate.to("/pstn/ranges"))
@@ -78,20 +91,6 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.separator()
                     ui.menu_item("Audit Trail", lambda: ui.navigate.to("/pstn/audit"))
 
-            # Discovery dropdown (UniFi, SNMP, Nmap, Ping, Scheduler)
-            with ui.button("Discovery", icon="radar").props("flat color=white no-caps"):
-                with ui.menu():
-                    ui.menu_item("UniFi Sync (Local)", lambda: ui.navigate.to("/unifi"))
-                    ui.menu_item("Site Manager (Cloud)", lambda: ui.navigate.to("/site-manager"))
-                    ui.separator()
-                    ui.menu_item("SNMP Discovery", lambda: ui.navigate.to("/snmp"))
-                    ui.menu_item("Nmap Scanner", lambda: ui.navigate.to("/nmap"))
-                    ui.menu_item("Ping Scan", lambda: ui.navigate.to("/ping-scan"))
-                    ui.separator()
-                    ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
-                    ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
-                    ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
-
             ui.link("Import/Export", "/import-export").classes("nav-link")
             ui.link("History", "/history").classes("nav-link")
             ui.link("Help", "/help").classes("nav-link")
@@ -100,6 +99,7 @@ def page_layout(title: str = "Home Lab Manager"):
             # Tools menu
             with ui.button(icon="build").props("flat round color=white size=sm"):
                 with ui.menu():
+                    ui.menu_item("Tags", lambda: ui.navigate.to("/tags"))
                     ui.menu_item("Calculator", lambda: ui.navigate.to("/calculator"))
                     ui.menu_item("Reports", lambda: ui.navigate.to("/reports"))
                     ui.menu_item("Locations", lambda: ui.navigate.to("/locations"))
