@@ -13,8 +13,6 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 | SNMP Discovery | `/snmp` | Query devices for system info via SNMP |
 | Nmap Scanner | `/nmap` | Run nmap commands with GUI interface |
 | Ping Scan | `/ping-scan` | Fast ICMP host discovery using fping/ping |
-| Uptime Monitor | `/uptime` | Continuous ping monitoring of critical hosts |
-| Port Monitor | `/port-monitor` | TCP service port monitoring |
 | Scheduled Scans | `/scheduler` | Configure recurring automatic scans |
 
 ---
@@ -158,67 +156,6 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 
 ---
 
-## Uptime Monitor
-
-**Purpose:** Continuously monitor critical hosts — get alerted when they go down.
-
-**How it works:**
-- Background scheduler pings all monitored hosts every 30 seconds
-- Each host has its own configurable check interval (20s–10m)
-- Configurable retries and retry interval before marking a host as down
-- Tracks status transitions (up → down, down → up/recovered)
-- Logs events with timestamps
-- Records every ping result (latency + status) for historical graphing
-
-**Monitoring Profiles (Presets):**
-
-| Profile | Heartbeat Interval | Retries | Retry Interval | Time to Alert |
-|---------|-------------------|---------|----------------|---------------|
-| Standard / Internal Devices | 60 seconds | 3 | 30 seconds | ~90 seconds |
-| Critical Infrastructure | 30 seconds | 2 | 10 seconds | ~20 seconds |
-| Non-Critical / IoT Devices | 300 seconds (5 min) | 3 | 60 seconds | ~3 minutes |
-| Custom | User-defined | User-defined | User-defined | Varies |
-
-**Features:**
-- Add hosts with preset profiles or fully custom timing values
-- **Two monitor types:**
-  - **Ping (ICMP)** — standard host reachability check
-  - **TCP Port** — check if a specific service port is responding (HTTP, HTTPS, SSH, DNS, RDP, etc.)
-- Quick port shortcuts in the add dialog: HTTP:80, HTTPS:443, SSH:22, DNS:53, RDP:3389, and more
-- Edit monitors (name, IP, type, port, interval, retries, retry interval, enable/disable)
-- Dashboard widget shows up/down counts (clickable → uptime page)
-- Summary badges: X Up, X Down — clickable to filter the list
-- Quick check button — instant ping or port test per host
-- Event history per host (collapsible) — shows when hosts went down/recovered
-- Remove monitoring with confirmation
-- Notifications — automatic alerts when hosts go down or recover (only after retries exhausted)
-- Port badge shown on host cards for TCP port monitors
-
-**Detail Page** (click any host card → `/uptime/{id}`):
-- **Heartbeat bar** — visual row of colored blocks showing recent check results (green = up, red = down)
-- **Stats row:**
-  - Ping (Current) — latest latency in ms
-  - Avg. Ping (24-hour) — average latency over 24 hours
-  - Uptime (24-hour) — percentage over last 24 hours
-  - Uptime (30-day) — percentage over last 30 days
-- **Response time chart** — ECharts line graph of latency over time:
-  - Selectable time range: 1h, 3h, 6h, 12h, 24h
-  - Green line with shaded area
-  - Red shaded zones marking downtime periods
-  - Dashed average latency reference line
-- **Recent events** — status changes with timestamps and details
-
-**Metrics Tracked:**
-- Current status (up/down/unknown)
-- Uptime percentage (total_up / total_checks × 100)
-- Consecutive failures
-- Max retries and retry interval per host
-- Last seen up / last seen down timestamps
-- Total check count
-- Per-check latency history (stored in ping_results table)
-
----
-
 ## Scheduled Scans
 
 **Purpose:** Configure recurring automatic network scans on a schedule.
@@ -272,5 +209,5 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 2. **Initial discovery:** Run a Ping Scan or use the Network scan button
 3. **Detailed info:** Run nmap Service + OS detection on specific IPs of interest
 4. **SNMP:** Query managed switches/servers that have SNMP enabled
-5. **Ongoing:** Set up scheduled scans + uptime monitoring for critical hosts
+5. **Ongoing:** Set up scheduled scans for continuous discovery
 6. **Classify:** Click IPs to set device types for newly discovered hosts
