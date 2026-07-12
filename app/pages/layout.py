@@ -38,9 +38,13 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Nmap Scanner", lambda: ui.navigate.to("/nmap"))
                     ui.menu_item("Ping Scan", lambda: ui.navigate.to("/ping-scan"))
                     ui.separator()
+                    ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
+
+            # Monitor dropdown
+            with ui.button("Monitor").props("flat color=white no-caps"):
+                with ui.menu():
                     ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
                     ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
-                    ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
 
             # Devices dropdown — dynamically shows types that have devices
             with ui.button("Devices").props("flat color=white no-caps"):
