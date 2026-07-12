@@ -44,6 +44,7 @@ def page_layout(title: str = "Home Lab Manager"):
             with ui.button("Monitor").props("flat color=white no-caps"):
                 with ui.menu():
                     ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
+                    ui.menu_item("Port Monitor", lambda: ui.navigate.to("/port-monitor"))
                     ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
 
             # Devices dropdown — dynamically shows types that have devices

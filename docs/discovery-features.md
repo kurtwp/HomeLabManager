@@ -13,7 +13,8 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 | SNMP Discovery | `/snmp` | Query devices for system info via SNMP |
 | Nmap Scanner | `/nmap` | Run nmap commands with GUI interface |
 | Ping Scan | `/ping-scan` | Fast ICMP host discovery using fping/ping |
-| Uptime Monitor | `/uptime` | Continuous monitoring of critical hosts |
+| Uptime Monitor | `/uptime` | Continuous ping monitoring of critical hosts |
+| Port Monitor | `/port-monitor` | TCP service port monitoring |
 | Scheduled Scans | `/scheduler` | Configure recurring automatic scans |
 
 ---

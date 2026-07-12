@@ -392,6 +392,12 @@ def uptime_detail_page(monitor_id: int):
     render_uptime_detail(monitor_id)
 
 
+@ui.page("/port-monitor")
+def port_monitor_page():
+    from app.pages.port_monitor_page import render_port_monitor
+    render_port_monitor()
+
+
 @ui.page("/help")
 def help_page():
     render_help()
