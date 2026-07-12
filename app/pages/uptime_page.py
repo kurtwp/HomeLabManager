@@ -358,12 +358,16 @@ def render_uptime():
             if add_monitor_type.value == "port" and not add_port.value:
                 ui.notify("Port number is required for TCP port monitoring", type="warning")
                 return
-            # Check for duplicate
-            existing = session.query(
-                __import__('app.models.uptime_monitor', fromlist=['MonitoredHost']).MonitoredHost
-            ).filter_by(ip_address=add_ip.value.strip()).first()
+            # Check for duplicate (same IP + same type + same port)
+            from app.models.uptime_monitor import MonitoredHost as MH
+            port_val = int(add_port.value) if add_port.value else None
+            query = session.query(MH).filter_by(ip_address=add_ip.value.strip())
+            if add_monitor_type.value == "ping":
+                existing = query.filter_by(monitor_type="ping").first()
+            else:
+                existing = query.filter_by(monitor_type="port", port=port_val).first()
             if existing:
-                ui.notify("This IP is already being monitored", type="negative")
+                ui.notify("This exact monitor already exists (same IP + type + port)", type="negative")
                 return
 
             preset = PRESETS.get(add_preset.value, PRESETS["standard"])

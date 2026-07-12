@@ -57,6 +57,18 @@ def _run_migrations():
                 if column not in existing_columns:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
                     print(f"  Migration: added {table}.{column}")
+
+        # Remove unique constraint on monitored_hosts.ip_address (allow multiple monitors per IP)
+        if "monitored_hosts" in inspector.get_table_names():
+            indexes = inspector.get_indexes("monitored_hosts")
+            for idx in indexes:
+                if idx.get("unique") and "ip_address" in idx.get("column_names", []):
+                    try:
+                        conn.execute(text(f"DROP INDEX IF EXISTS {idx['name']}"))
+                        print(f"  Migration: dropped unique index {idx['name']} on monitored_hosts.ip_address")
+                    except Exception:
+                        pass  # Index may not exist or be unnamed
+
         conn.commit()
 
 
