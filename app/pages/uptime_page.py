@@ -8,7 +8,6 @@ from app.services.uptime_service import (
     remove_monitor,
     update_monitor,
     get_all_monitors,
-    get_events_for_host,
     check_host,
 )
 from app.services.oui_service import lookup_manufacturer
@@ -155,25 +154,6 @@ def render_uptime():
                                     icon="delete",
                                     on_click=lambda h=host: confirm_remove(h),
                                 ).props("flat round size=sm color=red")
-
-                        # Events (collapsible)
-                        events = get_events_for_host(session, host.id, limit=10)
-                        if events:
-                            with ui.expansion("Recent Events", icon="history").classes("w-full mt-2"):
-                                for event in events:
-                                    ev_color = {"down": "red", "recovered": "green", "up": "green"}.get(
-                                        event.event_type, "gray"
-                                    )
-                                    with ui.row().classes("items-center gap-2"):
-                                        ui.icon("circle").classes(f"text-xs text-{ev_color}")
-                                        ui.label(
-                                            f"{event.timestamp.strftime('%Y-%m-%d %H:%M:%S') if event.timestamp else '—'}"
-                                        ).classes("text-xs text-gray-400")
-                                        ui.label(event.event_type.upper()).classes(f"text-xs font-bold text-{ev_color}")
-                                        if event.details:
-                                            ui.label(event.details).classes("text-xs text-gray-500")
-                                        if event.latency_ms:
-                                            ui.label(f"{event.latency_ms:.1f}ms").classes("text-xs text-gray-400")
 
         def open_edit_dialog(host):
             with ui.dialog() as edit_dlg, ui.card().classes("w-[450px]"):
