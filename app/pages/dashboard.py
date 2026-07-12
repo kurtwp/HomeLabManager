@@ -44,7 +44,37 @@ def render_dashboard():
     )
 
     with ui.column().classes("page-container w-full"):
-        ui.label("Dashboard").classes("text-3xl font-bold mb-4")
+        # Dashboard header with conflict status and source breakdown inline
+        with ui.row().classes("w-full items-center justify-between mb-4"):
+            ui.label("Dashboard").classes("text-3xl font-bold")
+            with ui.row().classes("items-center gap-4"):
+                # Conflict indicator
+                conflicts = detect_all_conflicts(session)
+                if conflicts["total"] > 0:
+                    with ui.row().classes("items-center gap-1"):
+                        ui.icon("warning").classes("text-red")
+                        ui.label(f"⚠️ {conflicts['total']} conflict(s)").classes(
+                            "text-sm font-semibold text-red"
+                        )
+                else:
+                    with ui.row().classes("items-center gap-1"):
+                        ui.icon("check_circle").classes("text-green text-sm")
+                        ui.label("No IP or MAC conflicts detected").classes("text-sm text-green")
+
+                # Source breakdown
+                if source_counts:
+                    ui.label("|").classes("text-gray-300")
+                    ui.label("Active by source:").classes("text-sm text-gray-500")
+                    source_labels = {
+                        "unifi_client": ("UniFi Clients", "blue"),
+                        "unifi_device": ("UniFi Infra", "purple"),
+                        "nmap_scan": ("Nmap Scan", "green"),
+                        "manual": ("Manual", "gray"),
+                        None: ("Unknown", "gray"),
+                    }
+                    for source, count in sorted(source_counts.items(), key=lambda x: -(x[1])):
+                        label, color = source_labels.get(source, (source or "Unknown", "gray"))
+                        ui.badge(f"{label}: {count}").props(f"color={color} outline")
 
         # Stats cards
         unifi_devices = session.query(Device).filter(Device.manufacturer == "Ubiquiti").count()
@@ -111,10 +141,9 @@ def render_dashboard():
                             )
                             ui.icon("arrow_forward").classes("text-gray-400")
 
-        # IP/MAC Conflict Detection
-        conflicts = detect_all_conflicts(session)
+        # IP/MAC Conflict Detection (detailed — shown only if conflicts exist)
         if conflicts["total"] > 0:
-            with ui.card().classes("w-full cursor-pointer").style(
+            with ui.card().classes("w-full").style(
                 "border-left: 4px solid #ef4444;"
             ):
                 with ui.row().classes("w-full items-center gap-3"):
@@ -137,25 +166,6 @@ def render_dashboard():
                         ui.label(f"...and {conflicts['total'] - 6} more").classes(
                             "text-xs text-gray-400"
                         )
-        else:
-            with ui.row().classes("w-full items-center gap-2"):
-                ui.icon("check_circle").classes("text-green")
-                ui.label("No IP or MAC conflicts detected").classes("text-sm text-green")
-
-        # Source breakdown
-        if source_counts:
-            with ui.row().classes("w-full gap-2 mt-2"):
-                ui.label("Active by source:").classes("text-sm text-gray-500")
-                source_labels = {
-                    "unifi_client": ("UniFi Clients", "blue"),
-                    "unifi_device": ("UniFi Infra", "purple"),
-                    "nmap_scan": ("Nmap Scan", "green"),
-                    "manual": ("Manual", "gray"),
-                    None: ("Unknown", "gray"),
-                }
-                for source, count in sorted(source_counts.items(), key=lambda x: -(x[1])):
-                    label, color = source_labels.get(source, (source or "Unknown", "gray"))
-                    ui.badge(f"{label}: {count}").props(f"color={color} outline")
 
         ui.separator().classes("my-4")
 
