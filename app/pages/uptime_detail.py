@@ -35,7 +35,18 @@ def render_uptime_detail(monitor_id: int):
             ui.label(host.name).classes("text-3xl font-bold")
 
         ui.label(host.ip_address).classes("text-lg font-mono text-gray-500")
-        ui.label(f"Check every {host.check_interval} seconds").classes("text-sm text-gray-400")
+
+        # Monitor type indicator
+        monitor_type = getattr(host, 'monitor_type', 'ping') or 'ping'
+        port = getattr(host, 'port', None)
+        if monitor_type == "port" and port:
+            with ui.row().classes("items-center gap-2"):
+                ui.badge(f"TCP Port :{port}").props("color=teal")
+                ui.label(f"Check every {host.check_interval} seconds").classes("text-sm text-gray-400")
+        else:
+            with ui.row().classes("items-center gap-2"):
+                ui.badge("Ping (ICMP)").props("color=blue outline")
+                ui.label(f"Check every {host.check_interval} seconds").classes("text-sm text-gray-400")
 
         ui.separator().classes("my-4")
 
@@ -203,7 +214,7 @@ def render_uptime_detail(monitor_id: int):
                         },
                         "yAxis": {
                             "type": "value",
-                            "name": "Resp. Time (ms)",
+                            "name": "TCP Connect Time (ms)" if monitor_type == "port" else "Ping Latency (ms)",
                             "min": 0,
                         },
                         "series": [
