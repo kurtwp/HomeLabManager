@@ -37,6 +37,7 @@ from app.pages.help_page import render_help
 from app.pages.notifications_page import render_notifications
 from app.pages.firmware_page import render_firmware
 from app.pages.settings_page import render_settings
+from app.pages.backup_page import render_backup
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -414,6 +415,11 @@ def firmware_page():
 @ui.page("/settings")
 def settings_page():
     render_settings()
+
+
+@ui.page("/backup")
+def backup_page():
+    render_backup()
 
 
 # --- PSTN / Telephony routes ---

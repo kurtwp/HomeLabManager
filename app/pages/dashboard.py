@@ -11,6 +11,7 @@ from app.models.uptime_monitor import MonitoredHost
 from app.services.network_service import get_all_networks, get_network_utilization
 from app.services.ip_service import get_recently_modified_ips, create_ip
 from app.services.device_service import create_device, get_all_device_types
+from app.services.conflict_service import detect_all_conflicts
 from app.pages.layout import page_layout
 
 
@@ -81,6 +82,33 @@ def render_dashboard():
                             "text-sm text-gray-500"
                         )
                         ui.icon("arrow_forward").classes("text-gray-400")
+
+        # IP/MAC Conflict Detection
+        conflicts = detect_all_conflicts(session)
+        if conflicts["total"] > 0:
+            with ui.card().classes("w-full cursor-pointer").style(
+                "border-left: 4px solid #ef4444;"
+            ):
+                with ui.row().classes("w-full items-center gap-3"):
+                    ui.icon("warning").classes("text-2xl text-red")
+                    ui.label(f"⚠️ {conflicts['total']} conflict(s) detected").classes(
+                        "font-semibold text-red"
+                    )
+                with ui.column().classes("ml-9 gap-1"):
+                    for conflict in conflicts["ip_conflicts"][:3]:
+                        ui.label(
+                            f"IP conflict: {conflict['address']} "
+                            f"({conflict['count']} entries)"
+                        ).classes("text-sm text-gray-600")
+                    for conflict in conflicts["mac_conflicts"][:3]:
+                        ui.label(
+                            f"MAC conflict: {conflict['mac_address']} "
+                            f"({conflict['count']} IPs on same network)"
+                        ).classes("text-sm text-gray-600")
+                    if conflicts["total"] > 6:
+                        ui.label(f"...and {conflicts['total'] - 6} more").classes(
+                            "text-xs text-gray-400"
+                        )
 
         # Source breakdown
         if source_counts:

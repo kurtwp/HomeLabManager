@@ -17,6 +17,9 @@ ENV/
 *.db-shm
 *.db-wal
 
+# Backups
+backups/
+
 # IDE
 .vscode/
 .idea/

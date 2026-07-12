@@ -41,6 +41,21 @@ def render_device_detail(device_id: int):
         if device.manufacturer and "ubiquiti" in device.manufacturer.lower():
             _render_unifi_health(device)
 
+        # Wake-on-LAN button (if device has a MAC)
+        from app.services.wol_service import validate_mac_for_wol, send_wol
+        if validate_mac_for_wol(device.mac_address):
+            with ui.row().classes("mb-4"):
+                def do_wol():
+                    success = send_wol(device.mac_address)
+                    if success:
+                        ui.notify(f"Wake-on-LAN packet sent to {device.mac_address}", type="positive")
+                    else:
+                        ui.notify("Failed to send WOL packet", type="negative")
+
+                ui.button("Wake on LAN", icon="power_settings_new", on_click=do_wol).props(
+                    "color=green outline"
+                ).tooltip(f"Send magic packet to {device.mac_address}")
+
         with ui.row().classes("w-full gap-4 flex-wrap"):
             # Info panel
             with ui.card().classes("w-80"):
