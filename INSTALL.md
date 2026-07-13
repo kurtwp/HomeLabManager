@@ -1,4 +1,4 @@
-# Installation Guide — Home Lab IP Manager
+# Installation Guide — Home Lab Manager
 
 This guide covers installing the Home Lab IP Manager on an Ubuntu server (tested on 24.04 and 26.04).
 
