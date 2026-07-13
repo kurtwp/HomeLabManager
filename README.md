@@ -1,4 +1,4 @@
-# Home Lab IP Manager
+# Home Lab Manager
 
 A self-hosted IP address management (IPAM) and equipment tracking application for home labs. Built with Python, NiceGUI, and SQLite.
 
