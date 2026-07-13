@@ -98,4 +98,13 @@ See [home-lab-features.md](home-lab-features.md) for the full feature roadmap.
 
 ## License
 
-MIT
+## 💼 Commercial Use & Licensing
+
+Home Lab Manager is free for personal, home lab, and educational use under the PolyForm Noncommercial License. 
+
+**Using this software in a commercial environment or embedding it into a commercial product is strictly prohibited under the standard license.**
+
+If you represent a business and want to use, modify, or integrate Home Lab Manager commercially, please reach out to negotiate a standard commercial license.
+
+📬 **Contact:** [Your Email Address] or open a private inquiry.
+
