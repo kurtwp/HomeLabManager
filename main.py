@@ -59,6 +59,10 @@ scheduler.add_job(run_checks, "interval", seconds=30, id="uptime_checks", replac
 from app.services.firmware_service import sync_firmware_info
 scheduler.add_job(sync_firmware_info, "interval", hours=6, id="firmware_check", replace_existing=True)
 
+# Add SSL certificate check job (runs every 12 hours)
+from app.services.ssl_service import refresh_all_certificates
+scheduler.add_job(refresh_all_certificates, "interval", hours=12, id="ssl_cert_check", replace_existing=True)
+
 
 # --- Page routes ---
 
@@ -444,6 +448,12 @@ def mac_watchlist_page():
 def webhook_triggers_page():
     from app.pages.webhook_triggers_page import render_webhook_triggers
     render_webhook_triggers()
+
+
+@ui.page("/ssl-tracker")
+def ssl_tracker_page():
+    from app.pages.ssl_page import render_ssl_tracker
+    render_ssl_tracker()
 
 
 # --- PSTN / Telephony routes ---

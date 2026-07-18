@@ -16,6 +16,7 @@ from app.services.firmware_service import DeviceFirmware
 from app.services.mac_watchlist_service import KnownMAC
 from app.services.auth_service import User
 from app.services.webhook_trigger_service import WebhookTrigger
+from app.services.ssl_service import SSLCertificate
 
 __all__ = [
     "Network",
