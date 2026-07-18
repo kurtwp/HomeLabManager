@@ -123,6 +123,18 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
                 comment="Auto-discovered during network scan",
             )
             hosts_added += 1
+
+            # Fire webhook trigger for new active IP
+            try:
+                from app.services.webhook_trigger_service import fire_event
+                fire_event("ip_active", {
+                    "address": host_addr,
+                    "hostname": hostname or "",
+                    "network": network.name,
+                    "source": "nmap_scan",
+                })
+            except Exception:
+                pass
         else:
             # Update last_seen for existing IPs
             ip_entry = next(ip for ip in existing_ips if ip.address == host_addr)
@@ -151,6 +163,17 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
                 ip_entry.status = IPStatus.INACTIVE
                 hosts_removed += 1
 
+                # Fire webhook trigger for IP going inactive
+                try:
+                    from app.services.webhook_trigger_service import fire_event
+                    fire_event("ip_inactive", {
+                        "address": ip_entry.address,
+                        "hostname": ip_entry.hostname or "",
+                        "network": network.name,
+                    })
+                except Exception:
+                    pass
+
     # Update scan log
     end_time = time.time()
     scan_log.hosts_found = len(discovered_hosts)
@@ -160,4 +183,37 @@ def scan_network(session: Session, network_id: int) -> ScanLog:
     scan_log.completed_at = datetime.now(timezone.utc)
 
     session.commit()
+
+    # Fire webhook triggers for scan_complete
+    try:
+        from app.services.webhook_trigger_service import fire_event
+        fire_event("scan_complete", {
+            "network": network.name,
+            "cidr": network.cidr,
+            "hosts_found": scan_log.hosts_found,
+            "hosts_added": hosts_added,
+            "hosts_removed": hosts_removed,
+            "duration_seconds": scan_log.duration_seconds,
+        })
+
+        # Fire unknown_mac events for any new IPs with unrecognized MACs
+        if hosts_added > 0:
+            try:
+                from app.services.mac_watchlist_service import KnownMAC
+                known_count = session.query(KnownMAC).count()
+                if known_count > 0:
+                    from app.services.mac_watchlist_service import detect_unknown_macs
+                    unknowns = detect_unknown_macs(session)
+                    for u in unknowns[:5]:  # Limit to avoid spamming
+                        fire_event("unknown_mac", {
+                            "mac": u["mac"],
+                            "address": u["address"],
+                            "hostname": u["hostname"],
+                            "network": u["network"],
+                        })
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     return scan_log

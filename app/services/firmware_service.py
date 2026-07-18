@@ -159,6 +159,18 @@ def sync_firmware_info() -> dict:
             except Exception as e:
                 errors.append(f"Notification error: {e}")
 
+            # Fire webhook triggers for firmware updates
+            try:
+                from app.services.webhook_trigger_service import fire_event
+                for item in newly_available:
+                    fire_event("firmware_update", {
+                        "device": item["name"],
+                        "current_version": item["current"],
+                        "available_version": item["available"],
+                    })
+            except Exception:
+                pass
+
         return {
             "checked": checked,
             "updates_available": updates_available,
