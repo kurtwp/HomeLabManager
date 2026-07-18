@@ -221,6 +221,19 @@ def _execute_nmap(cmd_parts: list[str], cmd_str: str, results_container):
                 capture_output=True, text=True, timeout=1800,  # 30 min max
             )
             _render_nmap_results(result, cmd_str, results_container)
+
+            # Fire webhook trigger for scan_complete
+            try:
+                from app.services.webhook_trigger_service import fire_event
+                hosts_up = len(re.findall(r"Host is up", result.stdout)) if result.stdout else 0
+                fire_event("scan_complete", {
+                    "scan_type": "nmap",
+                    "command": cmd_str,
+                    "hosts_found": hosts_up,
+                })
+            except Exception:
+                pass
+
         except subprocess.TimeoutExpired:
             results_container.clear()
             with results_container:
