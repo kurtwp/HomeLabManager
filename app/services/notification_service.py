@@ -69,6 +69,10 @@ def _get_config() -> dict:
         "pushover_enabled": _get("NOTIFY_PUSHOVER_ENABLED", "false").lower() == "true",
         "pushover_token": _get("NOTIFY_PUSHOVER_TOKEN", ""),
         "pushover_user": _get("NOTIFY_PUSHOVER_USER", ""),
+        # Telegram
+        "telegram_enabled": _get("NOTIFY_TELEGRAM_ENABLED", "false").lower() == "true",
+        "telegram_bot_token": _get("NOTIFY_TELEGRAM_BOT_TOKEN", ""),
+        "telegram_chat_id": _get("NOTIFY_TELEGRAM_CHAT_ID", ""),
     }
 
 
@@ -87,6 +91,8 @@ def get_enabled_channels() -> list[str]:
         channels.append("webhook")
     if config["pushover_enabled"]:
         channels.append("pushover")
+    if config["telegram_enabled"]:
+        channels.append("telegram")
     return channels
 
 
@@ -118,6 +124,9 @@ def send_notification(subject: str, message: str, priority: str = "normal") -> l
 
     if config["pushover_enabled"]:
         results.append(_send_pushover(config, subject, message, priority))
+
+    if config["telegram_enabled"]:
+        results.append(_send_telegram(config, subject, message))
 
     # Log all notifications
     session = SessionLocal()
@@ -223,6 +232,30 @@ def _send_pushover(config: dict, subject: str, message: str, priority: str) -> d
         return {"channel": "pushover", "success": True, "error": None}
     except Exception as e:
         return {"channel": "pushover", "success": False, "error": str(e)}
+
+
+def _send_telegram(config: dict, subject: str, message: str) -> dict:
+    """Send notification via Telegram Bot API."""
+    try:
+        bot_token = config["telegram_bot_token"]
+        chat_id = config["telegram_chat_id"]
+
+        text = f"*{subject}*\n\n{message}"
+
+        r = httpx.post(
+            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "Markdown",
+                "disable_web_page_preview": True,
+            },
+            timeout=10.0,
+        )
+        r.raise_for_status()
+        return {"channel": "telegram", "success": True, "error": None}
+    except Exception as e:
+        return {"channel": "telegram", "success": False, "error": str(e)}
 
 
 # --- Convenience Functions for Common Alerts ---

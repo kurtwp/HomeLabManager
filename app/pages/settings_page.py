@@ -68,6 +68,15 @@ SETTINGS_SCHEMA = [
             {"key": "NOTIFY_PUSHOVER_USER", "label": "User Key", "type": "password", "desc": "Pushover user/group key"},
         ],
     },
+    {
+        "group": "Notifications — Telegram",
+        "icon": "telegram",
+        "fields": [
+            {"key": "NOTIFY_TELEGRAM_ENABLED", "label": "Enable Telegram", "type": "toggle", "desc": "Send notifications via Telegram Bot"},
+            {"key": "NOTIFY_TELEGRAM_BOT_TOKEN", "label": "Bot Token", "type": "password", "desc": "Token from @BotFather (e.g. 123456:ABC-xyz)"},
+            {"key": "NOTIFY_TELEGRAM_CHAT_ID", "label": "Chat ID", "type": "text", "desc": "Your chat or group ID"},
+        ],
+    },
 ]
 
 

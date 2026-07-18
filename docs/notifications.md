@@ -13,6 +13,7 @@ Click the **wrench icon** (🔧) in the top-right → **Notifications**, or navi
 | Email (SMTP) | Sends email via any SMTP server (Gmail, Office 365, self-hosted) |
 | Webhook | Sends a JSON POST to any URL (Slack, Discord, Teams, custom endpoints) |
 | Pushover | Sends push notifications to iOS/Android via the Pushover app |
+| Telegram | Sends messages to a Telegram chat or group via Bot API |
 
 Multiple channels can be enabled simultaneously — alerts are sent to all active channels.
 
@@ -76,6 +77,22 @@ NOTIFY_PUSHOVER_USER=your_user_key
 
 - Create an application at [pushover.net](https://pushover.net) to get your token
 - Priority levels map to Pushover's native priorities (critical triggers emergency alerts with repeat)
+
+### Telegram
+
+```bash
+NOTIFY_TELEGRAM_ENABLED=true
+NOTIFY_TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+NOTIFY_TELEGRAM_CHAT_ID=your_chat_id
+```
+
+**Setup steps:**
+1. Message [@BotFather](https://t.me/BotFather) on Telegram → `/newbot` → follow prompts → get your bot token
+2. Start a conversation with your new bot (send it any message)
+3. Get your chat ID: visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser → find `"chat":{"id":123456789}` in the response
+4. Add the token and chat ID to your `.env` or Settings page
+
+**For group chats:** Add the bot to the group, send a message in the group, then check `getUpdates` for the group's chat ID (negative number like `-1001234567890`).
 
 ## Alert Triggers
 
