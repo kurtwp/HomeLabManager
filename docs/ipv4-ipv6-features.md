@@ -1,6 +1,6 @@
 # IPv4 and IPv6 Features
 
-This document outlines how the Home Lab IP Manager handles IPv4 and IPv6 address management.
+This document outlines how the Home Lab Manager handles IPv4 and IPv6 address management.
 
 ---
 

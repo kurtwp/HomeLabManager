@@ -1,6 +1,6 @@
 # Installation Guide — Home Lab Manager
 
-This guide covers installing the Home Lab IP Manager on an Ubuntu server (tested on 24.04 and 26.04).
+This guide covers installing the Home Lab Manager on an Ubuntu server (tested on 24.04 and 26.04).
 
 ---
 
@@ -50,9 +50,9 @@ python3.12 --version
 
 ```bash
 cd /opt
-sudo git clone https://github.com/kurtwp/HomeIPAdmin.git
-sudo chown -R $USER:$USER /opt/HomeIPAdmin
-cd /opt/HomeIPAdmin
+sudo git clone https://github.com/kurtwp/HomeLabManager.git
+sudo chown -R $USER:$USER /opt/HomeLabManager
+cd /opt/HomeLabManager
 ```
 
 ---
@@ -115,7 +115,7 @@ This enables the Nmap Scanner page to run privileged scans (SYN scan, OS detecti
 ## Step 6: Test the Application
 
 ```bash
-cd /opt/HomeIPAdmin
+cd /opt/HomeLabManager
 source .venv/bin/activate
 python main.py
 ```
@@ -135,7 +135,7 @@ Press Ctrl+C to stop the test.
 Copy the included service file:
 
 ```bash
-sudo cp /opt/HomeIPAdmin/homeipmanager.service /etc/systemd/system/
+sudo cp /opt/HomeLabManager/homeipmanager.service /etc/systemd/system/
 ```
 
 Edit if needed (default runs as root for port 80 binding):
@@ -148,16 +148,16 @@ Contents:
 
 ```ini
 [Unit]
-Description=Home Lab IP Manager
+Description=Home Lab Manager
 After=network.target
 
 [Service]
 Type=simple
 User=root
 Group=root
-WorkingDirectory=/opt/HomeIPAdmin
-Environment="PATH=/opt/HomeIPAdmin/.venv/bin:/usr/bin:/bin"
-ExecStart=/opt/HomeIPAdmin/.venv/bin/python main.py
+WorkingDirectory=/opt/HomeLabManager
+Environment="PATH=/opt/HomeLabManager/.venv/bin:/usr/bin:/bin"
+ExecStart=/opt/HomeLabManager/.venv/bin/python main.py
 Restart=always
 RestartSec=5
 
@@ -202,7 +202,7 @@ For example: `http://192.168.2.1`
 When new code is pushed to GitHub:
 
 ```bash
-cd /opt/HomeIPAdmin
+cd /opt/HomeLabManager
 sudo git pull
 sudo systemctl restart homeipmanager
 ```
@@ -226,8 +226,8 @@ Create `/home/blah/backups/backup_homeip.sh`:
 #!/bin/bash
 BACKUP_DIR=/home/blah/backups/homeipmanager
 mkdir -p $BACKUP_DIR
-cp /opt/HomeIPAdmin/.env $BACKUP_DIR/.env
-cp /opt/HomeIPAdmin/home_lab_manager.db $BACKUP_DIR/home_lab_manager_$(date +%Y%m%d).db
+cp /opt/HomeLabManager/.env $BACKUP_DIR/.env
+cp /opt/HomeLabManager/home_lab_manager.db $BACKUP_DIR/home_lab_manager_$(date +%Y%m%d).db
 # Keep only last 7 days
 find $BACKUP_DIR -name "*.db" -mtime +7 -delete
 ```
@@ -243,9 +243,9 @@ crontab -e
 
 ```bash
 cd /opt
-sudo git clone https://github.com/kurtwp/HomeIPAdmin.git
-sudo chown -R $USER:$USER /opt/HomeIPAdmin
-cd /opt/HomeIPAdmin
+sudo git clone https://github.com/kurtwp/HomeLabManager.git
+sudo chown -R $USER:$USER /opt/HomeLabManager
+cd /opt/HomeLabManager
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -255,10 +255,10 @@ sudo systemctl restart homeipmanager
 ```
 
 ---
-## Update HomeIPAdmin
+## Update HomeLabManager
 To update it in the future when you push new code:
 ```
-cd /opt/HomeIPAdmin
+cd /opt/HomeLabManager
 sudo git pull
 sudo systemctl restart homeipmanager
 ```
@@ -275,7 +275,7 @@ sudo journalctl -u homeipmanager -n 50 --no-pager
 Reinstall dependencies:
 
 ```bash
-cd /opt/HomeIPAdmin
+cd /opt/HomeLabManager
 source .venv/bin/activate
 pip install -r requirements.txt
 sudo systemctl restart homeipmanager
@@ -311,7 +311,7 @@ You must use Python 3.12 or 3.13. Install via deadsnakes PPA:
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
 sudo apt install python3.12 python3.12-venv
-cd /opt/HomeIPAdmin
+cd /opt/HomeLabManager
 rm -rf .venv
 python3.12 -m venv .venv
 source .venv/bin/activate
@@ -334,7 +334,7 @@ sudo systemctl start homeipmanager
 ## Architecture
 
 ```
-/opt/HomeIPAdmin/
+/opt/HomeLabManager/
 ├── main.py              # Application entry point
 ├── config.py            # Environment-based configuration
 ├── .env                 # Secrets and settings (NOT in git)

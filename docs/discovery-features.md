@@ -1,6 +1,6 @@
 # Discovery Features
 
-The Discovery dropdown menu provides all network scanning and device discovery tools available in the Home Lab IP Manager.
+The Discovery dropdown menu provides all network scanning and device discovery tools available in the Home Lab Manager.
 
 ---
 

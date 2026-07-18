@@ -1,6 +1,6 @@
 # VLAN Features
 
-This document outlines the current VLAN capabilities, known gaps, and planned features for the Home Lab IP Manager.
+This document outlines the current VLAN capabilities, known gaps, and planned features for the Home Lab Manager.
 
 ---
 

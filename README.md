@@ -24,8 +24,8 @@ A self-hosted IP address management (IPAM) and equipment tracking application fo
 
 ```bash
 # Clone the repo
-git clone https://github.com/kurtwp/HomeIPAdmin.git
-cd HomeIPAdmin
+git clone https://github.com/kurtwp/HomeLabManager.git
+cd HomeLabManager
 
 # Create virtual environment
 python -m venv .venv
@@ -65,7 +65,7 @@ Copy `.env.example` to `.env` and set your values:
 ## Project Structure
 
 ```
-HomeIPAdmin/
+HomeLabManager/
 ├── main.py                    # App entry point and page routing
 ├── config.py                  # Environment-based configuration
 ├── requirements.txt           # Python dependencies

@@ -1,1 +1,1 @@
-"""Home Lab IP Management & Equipment Application."""
+"""Home Lab Manager Application."""

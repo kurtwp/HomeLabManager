@@ -1,4 +1,4 @@
-# Home Lab IP Management & Equipment Application - Phased Feature List
+# Home Lab Management & Equipment Application - Phased Feature List
 
 ---
 

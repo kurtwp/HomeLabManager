@@ -45,7 +45,8 @@ Click **Add Host** and configure:
 2. If a ping fails, it enters retry mode (faster checks at the retry interval)
 3. Only after all retries are exhausted is the host marked "down"
 4. Notifications fire on status transitions (up → down, down → recovered)
-5. Every check records latency for historical graphing
+5. **Reminder notifications** are sent every 24 hours while a host remains down
+6. Every check records latency for historical graphing
 
 ### Features
 
@@ -191,10 +192,14 @@ All three monitor types integrate with the notification system:
 | Event | Source | Priority |
 |-------|--------|----------|
 | Host down | Uptime Monitor | High |
+| Host still down (24h reminder) | Uptime Monitor | High |
 | Host recovered | Uptime Monitor | Normal |
 | Service port down | Port Monitor | High |
+| Service still down (24h reminder) | Port Monitor | High |
 | Service recovered | Port Monitor | Normal |
 | Firmware update available | Firmware Tracker | Low |
+
+The 24-hour reminder repeats daily until the host/service recovers or the monitor is removed.
 
 Configure notifications at Tools → Notifications or see the [Notifications](notifications) documentation.
 

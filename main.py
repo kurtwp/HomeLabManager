@@ -1,4 +1,4 @@
-"""Home Lab IP Management & Equipment Application — NiceGUI entry point."""
+"""Home Lab Manager Application — NiceGUI entry point."""
 #
 from nicegui import ui, app
 
