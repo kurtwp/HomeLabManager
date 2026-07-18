@@ -5,20 +5,20 @@ Home Lab Manager includes optional user authentication to protect your data and 
 ## How It Works
 
 - **Auth is optional** — if no user account exists, the app runs without login (open access)
-- **First visit with no users** → you're prompted to create an admin account (one-time setup)
+- **To enable auth** → navigate to `/login` and create your first admin account
 - **After setup** → all pages require login, redirecting to `/login` if not authenticated
 - **Session-based** — login persists via NiceGUI's user storage (browser cookie)
 
-## First-Time Setup
+## Enabling Authentication
 
-On first launch (or after a fresh install), visiting any page shows the **Create Admin Account** screen:
+Authentication is disabled by default. To enable it:
 
-1. Choose a username (defaults to "admin")
-2. Set a password (minimum 4 characters)
-3. Confirm the password
+1. Navigate to `http://your-server:8080/login`
+2. Since no users exist, you'll see the **Create Admin Account** screen
+3. Choose a username and password
 4. Click "Create Account"
 
-You're automatically logged in after setup.
+From this point forward, all pages require login. The app remains open (no login) until you explicitly create the first user.
 
 ## Logging In
 
