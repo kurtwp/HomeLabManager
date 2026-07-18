@@ -161,6 +161,17 @@ def render_unifi():
                             f"{result['skipped']} skipped",
                             type="positive",
                         )
+                        # Fire webhook trigger
+                        try:
+                            from app.services.webhook_trigger_service import fire_event
+                            fire_event("scan_complete", {
+                                "scan_type": "unifi_client_sync",
+                                "hosts_found": result['created'] + result['updated'],
+                                "hosts_added": result['created'],
+                                "hosts_removed": result.get('marked_inactive', 0),
+                            })
+                        except Exception:
+                            pass
                     except Exception as e:
                         ui.notify(f"Sync failed: {e}", type="negative")
 
@@ -181,6 +192,18 @@ def render_unifi():
                 client_result = sync_clients(session)
                 log_result("Client Sync", client_result)
                 ui.notify("Full sync complete!", type="positive")
+                # Fire webhook trigger
+                try:
+                    from app.services.webhook_trigger_service import fire_event
+                    fire_event("scan_complete", {
+                        "scan_type": "unifi_full_sync",
+                        "networks_created": net_result['created'],
+                        "devices_created": dev_result['created'],
+                        "clients_created": client_result['created'],
+                        "clients_inactive": client_result.get('marked_inactive', 0),
+                    })
+                except Exception:
+                    pass
             except Exception as e:
                 ui.notify(f"Sync failed: {e}", type="negative")
 

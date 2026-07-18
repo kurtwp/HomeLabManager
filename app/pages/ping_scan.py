@@ -187,6 +187,19 @@ def render_ping_scan():
 
             session.commit()
 
+            # Fire webhook triggers
+            try:
+                from app.services.webhook_trigger_service import fire_event
+                fire_event("scan_complete", {
+                    "network": target,
+                    "hosts_found": len(found_hosts),
+                    "hosts_added": added,
+                    "hosts_removed": 0,
+                    "scan_type": "ping_scan",
+                })
+            except Exception:
+                pass
+
             # --- Display results ---
             results_container.clear()
             with results_container:
