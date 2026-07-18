@@ -49,15 +49,21 @@ def render_login():
                 def do_login():
                     session = get_session()
                     user = authenticate(session, username_input.value, password_input.value)
-                    session.close()
 
                     if user:
+                        # Extract values before closing session
+                        uname = user.username
+                        urole = user.role
+                        uid = user.id
+                        session.close()
+
                         app.storage.user["authenticated"] = True
-                        app.storage.user["username"] = user.username
-                        app.storage.user["role"] = user.role
-                        app.storage.user["user_id"] = user.id
+                        app.storage.user["username"] = uname
+                        app.storage.user["role"] = urole
+                        app.storage.user["user_id"] = uid
                         ui.navigate.to("/")
                     else:
+                        session.close()
                         error_label.text = "Invalid username or password"
                         password_input.value = ""
 
