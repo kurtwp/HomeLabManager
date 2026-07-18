@@ -220,3 +220,10 @@ def render_settings():
 
             ui.button("Reset", icon="undo", on_click=reset_form).props("flat")
             ui.button("Save Settings", icon="save", on_click=save_settings).props("color=primary")
+
+        # Change password section (if auth is enabled)
+        from app.services.auth_service import is_auth_enabled
+        if is_auth_enabled():
+            ui.separator().classes("my-4")
+            from app.pages.login_page import render_change_password
+            render_change_password()

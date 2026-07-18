@@ -6,6 +6,12 @@ from nicegui import ui
 def page_layout(title: str = "Home Lab Manager"):
     """Create the shared navigation layout. Call at the top of each page function."""
     from nicegui import app
+    from app.services.auth_service import is_auth_enabled
+
+    # Auth check — redirect to login if auth is enabled and user not authenticated
+    if is_auth_enabled() and not app.storage.user.get("authenticated"):
+        ui.navigate.to("/login")
+        return
 
     # Persist dark mode preference per user using NiceGUI's storage
     is_dark = app.storage.user.get("dark_mode", True)
@@ -132,3 +138,18 @@ def page_layout(title: str = "Home Lab Manager"):
                 icon="dark_mode",
                 on_click=toggle_dark,
             ).props("flat round color=white size=sm").tooltip("Toggle dark/light mode")
+
+            # Logout button (only shown when auth is enabled)
+            if is_auth_enabled():
+                def do_logout():
+                    app.storage.user["authenticated"] = False
+                    app.storage.user["username"] = ""
+                    app.storage.user["role"] = ""
+                    ui.navigate.to("/login")
+
+                ui.button(
+                    icon="logout",
+                    on_click=do_logout,
+                ).props("flat round color=white size=sm").tooltip(
+                    f"Logout ({app.storage.user.get('username', '')})"
+                )

@@ -62,6 +62,12 @@ scheduler.add_job(sync_firmware_info, "interval", hours=6, id="firmware_check", 
 
 # --- Page routes ---
 
+@ui.page("/login")
+def login_page():
+    from app.pages.login_page import render_login
+    render_login()
+
+
 @ui.page("/")
 def home():
     render_dashboard()
