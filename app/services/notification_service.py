@@ -179,20 +179,27 @@ def _send_email(config: dict, subject: str, message: str) -> dict:
 
 
 def _send_webhook(config: dict, subject: str, message: str, priority: str) -> dict:
-    """Send notification via generic webhook (JSON POST)."""
+    """Send notification via generic webhook (JSON POST). Auto-detects Discord/Slack format."""
     try:
-        payload = {
-            "subject": subject,
-            "message": message,
-            "priority": priority,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "source": "HomeLab Manager",
-        }
-        r = httpx.post(
-            config["webhook_url"],
-            json=payload,
-            timeout=10.0,
-        )
+        url = config["webhook_url"]
+
+        # Discord webhooks need {"content": "text"} format
+        if "discord.com/api/webhooks" in url:
+            payload = {"content": f"**{subject}**\n{message}"}
+        # Slack webhooks need {"text": "text"} format
+        elif "hooks.slack.com" in url:
+            payload = {"text": f"*{subject}*\n{message}"}
+        else:
+            # Generic JSON payload
+            payload = {
+                "subject": subject,
+                "message": message,
+                "priority": priority,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "HomeLab Manager",
+            }
+
+        r = httpx.post(url, json=payload, timeout=10.0)
         r.raise_for_status()
         return {"channel": "webhook", "success": True, "error": None}
     except Exception as e:

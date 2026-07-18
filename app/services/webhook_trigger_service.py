@@ -140,13 +140,28 @@ def fire_event(event_type: str, payload: dict) -> list[dict]:
                 **payload,
             }
 
+            # Format for specific platforms
+            url = trigger.webhook_url
+            if "discord.com/api/webhooks" in url:
+                # Discord expects {"content": "text"}
+                text_parts = [f"**[{event_type}]** {trigger.name}"]
+                for k, v in payload.items():
+                    if v is not None:
+                        text_parts.append(f"• {k}: {v}")
+                send_data = {"content": "\n".join(text_parts)}
+            elif "hooks.slack.com" in url:
+                # Slack expects {"text": "text"}
+                text_parts = [f"*[{event_type}]* {trigger.name}"]
+                for k, v in payload.items():
+                    if v is not None:
+                        text_parts.append(f"• {k}: {v}")
+                send_data = {"text": "\n".join(text_parts)}
+            else:
+                send_data = webhook_data
+
             # Send webhook
             try:
-                r = httpx.post(
-                    trigger.webhook_url,
-                    json=webhook_data,
-                    timeout=10.0,
-                )
+                r = httpx.post(url, json=send_data, timeout=10.0)
                 r.raise_for_status()
                 results.append({"trigger": trigger.name, "success": True, "error": None})
             except Exception as e:
@@ -181,12 +196,17 @@ def test_trigger(session: Session, trigger_id: int) -> dict:
         "message": f"Test webhook for trigger '{trigger.name}' ({trigger.event_type})",
     }
 
+    # Format for specific platforms
+    url = trigger.webhook_url
+    if "discord.com/api/webhooks" in url:
+        send_data = {"content": f"✅ **Test** — Trigger: {trigger.name} ({trigger.event_type})"}
+    elif "hooks.slack.com" in url:
+        send_data = {"text": f"✅ *Test* — Trigger: {trigger.name} ({trigger.event_type})"}
+    else:
+        send_data = test_payload
+
     try:
-        r = httpx.post(
-            trigger.webhook_url,
-            json=test_payload,
-            timeout=10.0,
-        )
+        r = httpx.post(url, json=send_data, timeout=10.0)
         r.raise_for_status()
         return {"success": True, "error": None, "status_code": r.status_code}
     except Exception as e:
