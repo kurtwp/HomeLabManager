@@ -267,6 +267,39 @@ def run_checks():
                             print(f"Notification error (down): {notify_err}")
                     else:
                         host.current_status = "down"
+
+                        # Send reminder notification every 24 hours while still down
+                        try:
+                            from app.services.notification_service import is_notifications_enabled, send_notification
+                            if is_notifications_enabled() and host.last_seen_down:
+                                from datetime import timedelta
+                                down_since = host.last_seen_down.replace(tzinfo=timezone.utc) if host.last_seen_down.tzinfo is None else host.last_seen_down
+                                # Check last notification for this host from the log
+                                from app.services.notification_service import NotificationLog
+                                last_notif = (
+                                    session.query(NotificationLog)
+                                    .filter(
+                                        NotificationLog.subject.contains(host.ip_address),
+                                        NotificationLog.success == True,
+                                        NotificationLog.timestamp >= now - timedelta(hours=24),
+                                    )
+                                    .first()
+                                )
+                                if not last_notif:
+                                    # No notification sent in the last 24h — send reminder
+                                    hours_down = int((now - down_since).total_seconds() / 3600)
+                                    send_notification(
+                                        subject=f"🔴 REMINDER: {host.name} ({host.ip_address}) still DOWN",
+                                        message=(
+                                            f"Host '{host.name}' at {host.ip_address} has been down "
+                                            f"for approximately {hours_down} hours.\n"
+                                            f"Consecutive failures: {host.consecutive_failures}\n"
+                                            f"This reminder repeats every 24 hours until the host recovers or is removed."
+                                        ),
+                                        priority="high",
+                                    )
+                        except Exception as notify_err:
+                            print(f"Notification error (reminder): {notify_err}")
                 else:
                     # Still in retry phase — use retry_interval for next check timing
                     # Override last_check to trigger a faster recheck
