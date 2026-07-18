@@ -112,6 +112,60 @@ def render_device_detail(device_id: int):
                     "color=primary size=sm"
                 ).classes("mt-2")
 
+            # Warranty / Lifecycle
+            with ui.card().classes("w-full mt-4"):
+                ui.label("Warranty & Lifecycle").classes("text-lg font-semibold mb-2")
+                purchase_input = ui.input(
+                    "Purchase Date",
+                    value=device.purchase_date.strftime("%Y-%m-%d") if device.purchase_date else "",
+                    placeholder="YYYY-MM-DD",
+                ).classes("w-full")
+                warranty_input = ui.input(
+                    "Warranty Expiry",
+                    value=device.warranty_expiry.strftime("%Y-%m-%d") if device.warranty_expiry else "",
+                    placeholder="YYYY-MM-DD",
+                ).classes("w-full")
+                eol_input = ui.input(
+                    "End of Life Date",
+                    value=device.eol_date.strftime("%Y-%m-%d") if device.eol_date else "",
+                    placeholder="YYYY-MM-DD",
+                ).classes("w-full")
+
+                # Show status indicators
+                from datetime import datetime as _dt, timezone as _tz
+                _now = _dt.now(_tz.utc).date()
+                if device.warranty_expiry:
+                    _exp = device.warranty_expiry.date() if hasattr(device.warranty_expiry, 'date') else device.warranty_expiry
+                    days_left = (_exp - _now).days
+                    if days_left < 0:
+                        ui.label(f"⚠️ Warranty expired {abs(days_left)} days ago").classes("text-xs text-red")
+                    elif days_left < 30:
+                        ui.label(f"⚡ Warranty expires in {days_left} days").classes("text-xs text-orange")
+                    else:
+                        ui.label(f"✓ Warranty valid ({days_left} days remaining)").classes("text-xs text-green")
+
+                def save_warranty():
+                    from datetime import datetime as dt
+                    kwargs = {}
+                    if purchase_input.value:
+                        kwargs["purchase_date"] = dt.strptime(purchase_input.value, "%Y-%m-%d")
+                    else:
+                        kwargs["purchase_date"] = None
+                    if warranty_input.value:
+                        kwargs["warranty_expiry"] = dt.strptime(warranty_input.value, "%Y-%m-%d")
+                    else:
+                        kwargs["warranty_expiry"] = None
+                    if eol_input.value:
+                        kwargs["eol_date"] = dt.strptime(eol_input.value, "%Y-%m-%d")
+                    else:
+                        kwargs["eol_date"] = None
+                    update_device(session, device.id, **kwargs)
+                    ui.notify("Warranty info saved!", type="positive")
+
+                ui.button("Save Warranty", on_click=save_warranty).props(
+                    "color=primary size=sm"
+                ).classes("mt-2")
+
             # Custom Fields
             render_custom_fields_for_entity(session, "device", device.id)
 

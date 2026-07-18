@@ -13,6 +13,7 @@ from app.models.note import Note
 from app.models.uptime_monitor import MonitoredHost, UptimeEvent, PingResult
 from app.services.notification_service import NotificationLog
 from app.services.firmware_service import DeviceFirmware
+from app.services.mac_watchlist_service import KnownMAC
 
 __all__ = [
     "Network",

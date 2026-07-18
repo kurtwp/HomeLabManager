@@ -42,6 +42,11 @@ class Device(Base):
     rack_position: Mapped[str | None] = mapped_column(String(100), nullable=True)
     shelf: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    # Warranty / lifecycle tracking
+    purchase_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    warranty_expiry: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    eol_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # End of life
+
     # Foreign keys
     device_type_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("device_types.id"), nullable=True

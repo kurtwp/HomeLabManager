@@ -1,5 +1,7 @@
 """Dashboard page — overview of networks, devices, IPs with quick-add forms."""
 
+from datetime import datetime, timezone, timedelta
+
 from nicegui import ui
 
 from app.database.db import get_session_direct as get_session
@@ -12,6 +14,7 @@ from app.services.network_service import get_all_networks, get_network_utilizati
 from app.services.ip_service import get_recently_modified_ips, create_ip
 from app.services.device_service import create_device, get_all_device_types
 from app.services.conflict_service import detect_all_conflicts
+from app.services.mac_watchlist_service import detect_unknown_macs, KnownMAC
 from app.pages.layout import page_layout
 
 
@@ -141,6 +144,38 @@ def render_dashboard():
                             )
                             ui.icon("arrow_forward").classes("text-gray-400")
 
+        # Warranty expiration warnings
+        _now = datetime.now(timezone.utc)
+        _30_days = _now + timedelta(days=30)
+        expiring_devices = (
+            session.query(Device)
+            .filter(Device.warranty_expiry.isnot(None), Device.warranty_expiry <= _30_days)
+            .order_by(Device.warranty_expiry)
+            .all()
+        )
+        if expiring_devices:
+            with ui.card().classes("w-full").style("border-left: 4px solid #f59e0b;"):
+                with ui.row().classes("w-full items-center gap-3"):
+                    ui.icon("event_busy").classes("text-2xl text-orange")
+                    ui.label(f"⚡ {len(expiring_devices)} device(s) with expiring/expired warranty").classes(
+                        "font-semibold text-orange"
+                    )
+                with ui.column().classes("ml-9 gap-1"):
+                    for dev in expiring_devices[:5]:
+                        exp_date = dev.warranty_expiry
+                        days_left = (exp_date.date() - _now.date()).days if hasattr(exp_date, 'date') else 0
+                        if days_left < 0:
+                            status = f"expired {abs(days_left)}d ago"
+                            color = "text-red"
+                        else:
+                            status = f"expires in {days_left}d"
+                            color = "text-orange"
+                        ui.label(
+                            f"{dev.name} — {status} ({exp_date.strftime('%Y-%m-%d') if hasattr(exp_date, 'strftime') else exp_date})"
+                        ).classes(f"text-sm {color}")
+                    if len(expiring_devices) > 5:
+                        ui.label(f"...and {len(expiring_devices) - 5} more").classes("text-xs text-gray-400")
+
         # IP/MAC Conflict Detection (detailed — shown only if conflicts exist)
         if conflicts["total"] > 0:
             with ui.card().classes("w-full").style(
@@ -166,6 +201,29 @@ def render_dashboard():
                         ui.label(f"...and {conflicts['total'] - 6} more").classes(
                             "text-xs text-gray-400"
                         )
+
+        # Unknown MAC warning (only if watchlist has entries)
+        has_watchlist = session.query(KnownMAC).first() is not None
+        if has_watchlist:
+            unknown_macs = detect_unknown_macs(session)
+            if unknown_macs:
+                with ui.card().classes("w-full cursor-pointer").style(
+                    "border-left: 4px solid #f59e0b;"
+                ).on("click", lambda: ui.navigate.to("/mac-watchlist")):
+                    with ui.row().classes("w-full items-center gap-3"):
+                        ui.icon("device_unknown").classes("text-2xl text-orange")
+                        ui.label(f"🔍 {len(unknown_macs)} unknown device(s) on the network").classes(
+                            "font-semibold text-orange"
+                        )
+                    with ui.column().classes("ml-9 gap-1"):
+                        for u in unknown_macs[:3]:
+                            ui.label(f"{u['mac']} — {u['hostname']} ({u['address']})").classes(
+                                "text-sm text-gray-600"
+                            )
+                        if len(unknown_macs) > 3:
+                            ui.label(f"...and {len(unknown_macs) - 3} more → click to review").classes(
+                                "text-xs text-gray-400"
+                            )
 
         ui.separator().classes("my-4")
 

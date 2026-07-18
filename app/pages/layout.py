@@ -109,6 +109,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Reports", lambda: ui.navigate.to("/reports"))
                     ui.menu_item("Locations", lambda: ui.navigate.to("/locations"))
                     ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
+                    ui.menu_item("MAC Watchlist", lambda: ui.navigate.to("/mac-watchlist"))
                     ui.separator()
                     ui.menu_item("Notifications", lambda: ui.navigate.to("/notifications"))
                     ui.menu_item("Settings", lambda: ui.navigate.to("/settings"))

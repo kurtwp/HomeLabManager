@@ -48,6 +48,9 @@ def _run_migrations():
         ("monitored_hosts", "retry_interval", "INTEGER DEFAULT 30"),
         ("monitored_hosts", "monitor_type", "VARCHAR(20) DEFAULT 'ping'"),
         ("monitored_hosts", "port", "INTEGER"),
+        ("devices", "purchase_date", "DATETIME"),
+        ("devices", "warranty_expiry", "DATETIME"),
+        ("devices", "eol_date", "DATETIME"),
     ]
 
     with engine.connect() as conn:

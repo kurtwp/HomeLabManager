@@ -428,6 +428,12 @@ def backup_page():
     render_backup()
 
 
+@ui.page("/mac-watchlist")
+def mac_watchlist_page():
+    from app.pages.mac_watchlist_page import render_mac_watchlist
+    render_mac_watchlist()
+
+
 # --- PSTN / Telephony routes ---
 
 @ui.page("/pstn")
