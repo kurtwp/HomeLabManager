@@ -20,17 +20,17 @@ Both can coexist — notifications alert you, triggers automate responses.
 
 ## Available Events
 
-| Event | Fires When |
-|-------|-----------|
-| `monitor_down` | An uptime or port monitor goes down |
-| `monitor_up` | A monitor recovers |
-| `ip_inactive` | An IP address is marked inactive |
-| `ip_active` | A new IP is discovered or becomes active |
-| `new_device` | A new device is added to the inventory |
-| `unknown_mac` | An unrecognized MAC address is detected |
-| `capacity_warning` | A network's utilization exceeds 80% |
-| `scan_complete` | A network scan finishes |
-| `firmware_update` | A firmware update is available for a device |
+| Event | Fires When | Status |
+|-------|-----------|--------|
+| `monitor_down` | An uptime or port monitor goes down | ✅ Active |
+| `monitor_up` | A monitor recovers | ✅ Active |
+| `scan_complete` | A network scan (ping/nmap) finishes | ✅ Active |
+| `ip_active` | A new IP is discovered during a scan | ✅ Active |
+| `ip_inactive` | An IP is marked inactive during a scan | ✅ Active |
+| `unknown_mac` | Unrecognized MACs found after a scan | ✅ Active |
+| `firmware_update` | A firmware update is available for a device | ✅ Active |
+| `new_device` | A new device is added to the inventory | 🔜 Planned |
+| `capacity_warning` | A network's utilization exceeds 80% | 🔜 Planned |
 
 ## Creating a Trigger
 
