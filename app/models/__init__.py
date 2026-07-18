@@ -15,6 +15,7 @@ from app.services.notification_service import NotificationLog
 from app.services.firmware_service import DeviceFirmware
 from app.services.mac_watchlist_service import KnownMAC
 from app.services.auth_service import User
+from app.services.webhook_trigger_service import WebhookTrigger
 
 __all__ = [
     "Network",

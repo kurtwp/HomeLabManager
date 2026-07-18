@@ -440,6 +440,12 @@ def mac_watchlist_page():
     render_mac_watchlist()
 
 
+@ui.page("/webhook-triggers")
+def webhook_triggers_page():
+    from app.pages.webhook_triggers_page import render_webhook_triggers
+    render_webhook_triggers()
+
+
 # --- PSTN / Telephony routes ---
 
 @ui.page("/pstn")

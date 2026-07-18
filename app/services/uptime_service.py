@@ -240,6 +240,18 @@ def run_checks():
                             notify_host_recovered(host.name, host.ip_address, host.consecutive_failures)
                     except Exception as notify_err:
                         print(f"Notification error (recovery): {notify_err}")
+
+                    # Fire webhook triggers
+                    try:
+                        from app.services.webhook_trigger_service import fire_event
+                        fire_event("monitor_up", {
+                            "name": host.name,
+                            "ip_address": host.ip_address,
+                            "monitor_type": getattr(host, 'monitor_type', 'ping') or 'ping',
+                            "port": getattr(host, 'port', None),
+                        })
+                    except Exception:
+                        pass
             else:
                 host.consecutive_failures += 1
                 host.last_seen_down = now
@@ -265,6 +277,19 @@ def run_checks():
                                 notify_host_down(host.name, host.ip_address, host.consecutive_failures)
                         except Exception as notify_err:
                             print(f"Notification error (down): {notify_err}")
+
+                        # Fire webhook triggers
+                        try:
+                            from app.services.webhook_trigger_service import fire_event
+                            fire_event("monitor_down", {
+                                "name": host.name,
+                                "ip_address": host.ip_address,
+                                "monitor_type": getattr(host, 'monitor_type', 'ping') or 'ping',
+                                "port": getattr(host, 'port', None),
+                                "consecutive_failures": host.consecutive_failures,
+                            })
+                        except Exception:
+                            pass
                     else:
                         host.current_status = "down"
 
