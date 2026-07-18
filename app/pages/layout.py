@@ -52,6 +52,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
                     ui.menu_item("Port Monitor", lambda: ui.navigate.to("/port-monitor"))
                     ui.menu_item("SSL Certificates", lambda: ui.navigate.to("/ssl-tracker"))
+                    ui.menu_item("Domain Tracker", lambda: ui.navigate.to("/domain-tracker"))
                     ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
 
             # Devices dropdown — dynamically shows types that have devices

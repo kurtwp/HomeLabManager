@@ -63,6 +63,10 @@ scheduler.add_job(sync_firmware_info, "interval", hours=6, id="firmware_check", 
 from app.services.ssl_service import refresh_all_certificates
 scheduler.add_job(refresh_all_certificates, "interval", hours=12, id="ssl_cert_check", replace_existing=True)
 
+# Add domain expiry check job (runs daily)
+from app.services.domain_service import refresh_all_domains
+scheduler.add_job(refresh_all_domains, "interval", hours=24, id="domain_check", replace_existing=True)
+
 
 # --- Page routes ---
 
@@ -454,6 +458,12 @@ def webhook_triggers_page():
 def ssl_tracker_page():
     from app.pages.ssl_page import render_ssl_tracker
     render_ssl_tracker()
+
+
+@ui.page("/domain-tracker")
+def domain_tracker_page():
+    from app.pages.domain_page import render_domain_tracker
+    render_domain_tracker()
 
 
 # --- PSTN / Telephony routes ---
