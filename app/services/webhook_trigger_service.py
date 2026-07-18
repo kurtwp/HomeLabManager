@@ -162,8 +162,11 @@ def fire_event(event_type: str, payload: dict) -> list[dict]:
             # Send webhook
             try:
                 r = httpx.post(url, json=send_data, timeout=10.0)
-                r.raise_for_status()
-                results.append({"trigger": trigger.name, "success": True, "error": None})
+                if r.status_code >= 400:
+                    error_detail = r.text[:200] if r.text else f"HTTP {r.status_code}"
+                    results.append({"trigger": trigger.name, "success": False, "error": error_detail})
+                else:
+                    results.append({"trigger": trigger.name, "success": True, "error": None})
             except Exception as e:
                 results.append({"trigger": trigger.name, "success": False, "error": str(e)})
 
