@@ -555,16 +555,40 @@ def _render_save_snmp_button(info):
                 existing.location = info.sys_location
             if info.sys_descr and not existing.model:
                 existing.model = info.sys_descr[:255]
+            # Set MAC from IP entry or SNMP interfaces
+            if not existing.mac_address:
+                mac = None
+                if ip_entry and ip_entry.mac_address:
+                    mac = ip_entry.mac_address
+                elif info.interfaces:
+                    # Use first non-loopback interface MAC
+                    for iface in info.interfaces:
+                        if iface.get("mac") and iface["mac"] != "—" and iface["name"] != "lo":
+                            mac = iface["mac"].upper().replace(" ", ":")
+                            break
+                if mac:
+                    existing.mac_address = mac
             existing_name = existing.name
             s.commit()
             s.close()
             ui.notify(f"Updated existing device '{existing_name}'", type="positive")
         else:
+            # Determine MAC address
+            mac = None
+            if ip_entry and ip_entry.mac_address:
+                mac = ip_entry.mac_address
+            elif info.interfaces:
+                for iface in info.interfaces:
+                    if iface.get("mac") and iface["mac"] != "—" and iface["name"] != "lo":
+                        mac = iface["mac"].upper().replace(" ", ":")
+                        break
+
             # Create new device
             new_dev = DevModel(
                 name=device_name,
                 manufacturer=manufacturer,
                 model=info.sys_descr[:255] if info.sys_descr else None,
+                mac_address=mac,
                 device_type_id=device_type_id,
                 location=info.sys_location or None,
                 notes=f"Discovered via SNMP\nObject ID: {info.sys_object_id or '—'}",
