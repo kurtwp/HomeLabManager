@@ -15,6 +15,8 @@ from app.services.ip_service import get_recently_modified_ips, create_ip
 from app.services.device_service import create_device, get_all_device_types
 from app.services.conflict_service import detect_all_conflicts
 from app.services.mac_watchlist_service import detect_unknown_macs, KnownMAC
+from app.services.ssl_service import SSLCertificate
+from app.services.domain_service import TrackedDomain
 from app.pages.layout import page_layout
 
 
@@ -143,6 +145,56 @@ def render_dashboard():
                                 "text-sm text-gray-500"
                             )
                             ui.icon("arrow_forward").classes("text-gray-400")
+
+        # SSL Certificates + Domain Tracker (side by side)
+        ssl_certs = session.query(SSLCertificate).all()
+        tracked_domains = session.query(TrackedDomain).all()
+
+        if ssl_certs or tracked_domains:
+            with ui.row().classes("w-full gap-4"):
+                if ssl_certs:
+                    ssl_valid = sum(1 for c in ssl_certs if c.days_remaining and c.days_remaining > 30)
+                    ssl_expiring = sum(1 for c in ssl_certs if c.days_remaining and 0 < c.days_remaining <= 30)
+                    ssl_expired = sum(1 for c in ssl_certs if c.days_remaining is not None and c.days_remaining <= 0)
+
+                    with ui.card().classes("flex-1 cursor-pointer").on(
+                        "click", lambda: ui.navigate.to("/ssl-tracker")
+                    ):
+                        with ui.row().classes("w-full items-center justify-between"):
+                            with ui.row().classes("items-center gap-3"):
+                                ui.icon("verified_user").classes("text-3xl text-blue")
+                                ui.label("SSL Certificates").classes("text-lg font-semibold")
+                            with ui.row().classes("items-center gap-4"):
+                                if ssl_valid:
+                                    ui.badge(f"✅ {ssl_valid} Valid").props("color=green")
+                                if ssl_expiring:
+                                    ui.badge(f"⚠️ {ssl_expiring} Expiring").props("color=orange")
+                                if ssl_expired:
+                                    ui.badge(f"❌ {ssl_expired} Expired").props("color=red")
+                                ui.label(f"{len(ssl_certs)} tracked").classes("text-sm text-gray-500")
+                                ui.icon("arrow_forward").classes("text-gray-400")
+
+                if tracked_domains:
+                    dom_valid = sum(1 for d in tracked_domains if d.days_remaining and d.days_remaining > 30)
+                    dom_expiring = sum(1 for d in tracked_domains if d.days_remaining and 0 < d.days_remaining <= 30)
+                    dom_expired = sum(1 for d in tracked_domains if d.days_remaining is not None and d.days_remaining <= 0)
+
+                    with ui.card().classes("flex-1 cursor-pointer").on(
+                        "click", lambda: ui.navigate.to("/domain-tracker")
+                    ):
+                        with ui.row().classes("w-full items-center justify-between"):
+                            with ui.row().classes("items-center gap-3"):
+                                ui.icon("dns").classes("text-3xl text-purple")
+                                ui.label("Domain Tracker").classes("text-lg font-semibold")
+                            with ui.row().classes("items-center gap-4"):
+                                if dom_valid:
+                                    ui.badge(f"✅ {dom_valid} Valid").props("color=green")
+                                if dom_expiring:
+                                    ui.badge(f"⚠️ {dom_expiring} Expiring").props("color=orange")
+                                if dom_expired:
+                                    ui.badge(f"❌ {dom_expired} Expired").props("color=red")
+                                ui.label(f"{len(tracked_domains)} tracked").classes("text-sm text-gray-500")
+                                ui.icon("arrow_forward").classes("text-gray-400")
 
         # Warranty expiration warnings
         _now = datetime.now(timezone.utc)
