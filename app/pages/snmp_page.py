@@ -553,6 +553,8 @@ def _render_save_snmp_button(info):
                 existing.device_type_id = device_type_id
             if info.sys_location and not existing.location:
                 existing.location = info.sys_location
+            if info.sys_descr and not existing.model:
+                existing.model = info.sys_descr[:255]
             existing_name = existing.name
             s.commit()
             s.close()
@@ -562,9 +564,10 @@ def _render_save_snmp_button(info):
             new_dev = DevModel(
                 name=device_name,
                 manufacturer=manufacturer,
+                model=info.sys_descr[:255] if info.sys_descr else None,
                 device_type_id=device_type_id,
                 location=info.sys_location or None,
-                notes=f"Discovered via SNMP\nDescription: {info.sys_descr or '—'}\nObject ID: {info.sys_object_id or '—'}",
+                notes=f"Discovered via SNMP\nObject ID: {info.sys_object_id or '—'}",
             )
             s.add(new_dev)
             s.flush()
