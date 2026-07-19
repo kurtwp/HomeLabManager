@@ -108,10 +108,24 @@ def update_ip(session: Session, ip_id: int, **kwargs) -> IPAddress | None:
 
 
 def delete_ip(session: Session, ip_id: int) -> bool:
-    """Delete an IP entry, preserving changelog history."""
+    """Delete an IP entry and its linked device (if no other IPs use it). Preserves changelog."""
     ip = get_ip_by_id(session, ip_id)
     if not ip:
         return False
+
+    # Check if there's a linked device that should also be deleted
+    device_to_delete = None
+    if ip.device_id:
+        # Count how many IPs are linked to this device
+        other_ips = (
+            session.query(IPAddress)
+            .filter(IPAddress.device_id == ip.device_id, IPAddress.id != ip.id)
+            .count()
+        )
+        if other_ips == 0:
+            # This is the only IP — delete the device too
+            from app.models.device import Device
+            device_to_delete = session.query(Device).filter(Device.id == ip.device_id).first()
 
     log_change(
         session,
@@ -126,6 +140,19 @@ def delete_ip(session: Session, ip_id: int) -> bool:
         },
     )
     session.delete(ip)
+
+    # Delete the orphaned device
+    if device_to_delete:
+        log_change(
+            session,
+            entity_type=EntityType.DEVICE,
+            entity_id=device_to_delete.id,
+            action=ActionType.DELETED,
+            entity_name=device_to_delete.name,
+            old_values={"name": device_to_delete.name, "reason": "last IP deleted"},
+        )
+        session.delete(device_to_delete)
+
     session.commit()
     return True
 
