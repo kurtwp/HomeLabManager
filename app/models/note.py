@@ -17,6 +17,9 @@ class Note(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False, default="")
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # "ip" or "device"
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_archived: Mapped[bool] = mapped_column(Integer, default=0)  # 0=active, 1=archived
+    archived_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)  # Original IP when archived
+    archived_hostname: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Original hostname
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
@@ -27,4 +30,4 @@ class Note(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Note(title={self.title!r}, entity={self.entity_type}:{self.entity_id})>"
+        return f"<Note(title={self.title!r}, entity={self.entity_type}:{self.entity_id}, archived={self.is_archived})>"

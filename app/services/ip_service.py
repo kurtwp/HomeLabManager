@@ -140,9 +140,15 @@ def delete_ip(session: Session, ip_id: int) -> bool:
         },
     )
 
-    # Delete associated notes
+    # Archive associated notes (preserve for future reference)
     from app.models.note import Note
-    session.query(Note).filter(Note.entity_type == "ip", Note.entity_id == ip.id).delete()
+    notes_to_archive = session.query(Note).filter(
+        Note.entity_type == "ip", Note.entity_id == ip.id, Note.is_archived == 0
+    ).all()
+    for note in notes_to_archive:
+        note.is_archived = 1
+        note.archived_ip = ip.address
+        note.archived_hostname = ip.hostname
 
     session.delete(ip)
 

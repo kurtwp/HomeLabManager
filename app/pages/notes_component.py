@@ -31,7 +31,11 @@ def render_notes(session: Session, entity_type: str, entity_id: int):
             s = get_session_direct()
             notes = (
                 s.query(Note)
-                .filter(Note.entity_type == entity_type, Note.entity_id == entity_id)
+                .filter(
+                    Note.entity_type == entity_type,
+                    Note.entity_id == entity_id,
+                    Note.is_archived == 0,
+                )
                 .order_by(Note.created_at.desc())
                 .all()
             )

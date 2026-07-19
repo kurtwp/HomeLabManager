@@ -51,6 +51,9 @@ def _run_migrations():
         ("devices", "purchase_date", "DATETIME"),
         ("devices", "warranty_expiry", "DATETIME"),
         ("devices", "eol_date", "DATETIME"),
+        ("notes", "is_archived", "INTEGER DEFAULT 0"),
+        ("notes", "archived_ip", "VARCHAR(45)"),
+        ("notes", "archived_hostname", "VARCHAR(255)"),
     ]
 
     with engine.connect() as conn:

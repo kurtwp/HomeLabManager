@@ -108,9 +108,14 @@ def delete_device(session: Session, device_id: int) -> bool:
         old_values={"name": device.name, "manufacturer": device.manufacturer},
     )
 
-    # Delete associated notes
+    # Archive associated notes (preserve for future reference)
     from app.models.note import Note
-    session.query(Note).filter(Note.entity_type == "device", Note.entity_id == device.id).delete()
+    notes_to_archive = session.query(Note).filter(
+        Note.entity_type == "device", Note.entity_id == device.id, Note.is_archived == 0
+    ).all()
+    for note in notes_to_archive:
+        note.is_archived = 1
+        note.archived_hostname = device.name
 
     session.delete(device)
     session.commit()
