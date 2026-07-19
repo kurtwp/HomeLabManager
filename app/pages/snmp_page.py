@@ -498,6 +498,26 @@ def _render_save_snmp_button(info):
         dev_type_name = identify_device_type(info.sys_object_id)
         manufacturer = identify_manufacturer(info.sys_object_id, info.sys_descr)
 
+        # Fall back to MAC OUI lookup if manufacturer is generic (Linux, etc.)
+        if (not manufacturer or manufacturer == "Linux") and ip_entry and ip_entry.mac_address:
+            try:
+                from app.services.oui_service import lookup_manufacturer as oui_lookup
+                oui_mfg = oui_lookup(ip_entry.mac_address)
+                if oui_mfg:
+                    manufacturer = oui_mfg
+                    # Also refine device type based on known OUI manufacturers
+                    oui_type_map = {
+                        "synology": "NAS", "qnap": "NAS",
+                        "cisco": "Switch", "ubiquiti": "Access Point",
+                        "mikrotik": "Router", "hewlett": "Switch",
+                    }
+                    for kw, dtype in oui_type_map.items():
+                        if kw in oui_mfg.lower():
+                            dev_type_name = dtype
+                            break
+            except Exception:
+                pass
+
         # Find or create the device type
         device_type_id = None
         if dev_type_name:
@@ -547,7 +567,7 @@ def _render_save_snmp_button(info):
 
         if existing:
             # Update existing device
-            if manufacturer and not existing.manufacturer:
+            if manufacturer and (not existing.manufacturer or existing.manufacturer == "Linux"):
                 existing.manufacturer = manufacturer
             if device_type_id and not existing.device_type_id:
                 existing.device_type_id = device_type_id
