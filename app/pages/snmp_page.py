@@ -160,7 +160,7 @@ def render_snmp():
                 with ui.card().classes("w-full"):
                     ui.label("SNMP Network Scan").classes("text-lg font-semibold mb-2")
                     ui.label(
-                        "Probe all known IPs in a network for SNMP-enabled devices."
+                        "Scan all IPs in a network's subnet for SNMP-enabled devices."
                     ).classes("text-sm text-gray-500 mb-4")
 
                     networks = get_all_networks(session)
@@ -177,23 +177,30 @@ def render_snmp():
                             ui.notify("Select a network", type="warning")
                             return
 
-                        # Get all IPs in that network
-                        ips = (
-                            session.query(IPAddress)
-                            .filter(IPAddress.network_id == net_select.value)
-                            .all()
-                        )
-                        if not ips:
-                            ui.notify("No IPs in this network. Run a ping scan first.", type="warning")
+                        # Get the network CIDR and generate all host IPs
+                        import ipaddress as ipa
+                        net_obj = session.query(Network).filter(Network.id == net_select.value).first()
+                        if not net_obj:
+                            ui.notify("Network not found", type="warning")
                             return
 
-                        ip_list = [ip.address for ip in ips]
+                        try:
+                            network = ipa.ip_network(net_obj.cidr, strict=False)
+                            ip_list = [str(ip) for ip in network.hosts()]
+                        except ValueError:
+                            ui.notify("Invalid network CIDR", type="negative")
+                            return
+
+                        # Limit to /24 max (254 hosts) to avoid very long scans
+                        if len(ip_list) > 254:
+                            ip_list = ip_list[:254]
+
                         network_results.clear()
                         with network_results:
                             with ui.row().classes("items-center gap-3"):
                                 ui.spinner(size="lg")
                                 ui.label(
-                                    f"Scanning {len(ip_list)} IPs for SNMP... "
+                                    f"Scanning {len(ip_list)} IPs in {net_obj.cidr} for SNMP... "
                                     f"This may take up to {len(ip_list) * int(timeout_input.value or 2) // 20 + 1} seconds."
                                 ).classes("text-sm text-gray-500")
 
