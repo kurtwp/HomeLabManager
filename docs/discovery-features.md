@@ -69,7 +69,7 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 
 ## SNMP Discovery
 
-**Purpose:** Query network devices for detailed system information via SNMP protocol.
+**Purpose:** Query network devices for detailed system information via SNMP protocol. Ideal for non-UniFi environments — auto-creates devices with type and manufacturer identification.
 
 **Requirements:**
 - `snmpget` and `snmpwalk` installed (`sudo apt install snmp`)
@@ -88,10 +88,38 @@ The Discovery dropdown menu provides all network scanning and device discovery t
 **Information Gathered:**
 - System name, description, location, contact
 - Uptime
-- Object ID
+- Object ID (used for device type identification)
 - Interface count with details (name, status up/down, speed, MAC)
 
-**Save:** Click "Save to Database" to store results as a Note on the IP.
+**Actions on Results:**
+- **Save as Note** — store SNMP results as a markdown note on the IP
+- **Create/Update Device** — auto-create a Device record with:
+  - Device type identified from sysObjectID (Switch, Router, AP, Server, NAS)
+  - Manufacturer identified from OID and sysDescr (Cisco, MikroTik, HP, Synology, etc.)
+  - Location from SNMP sysLocation
+  - Linked to the IP address automatically
+
+**Device Type Identification (from sysObjectID):**
+
+| OID Prefix | Manufacturer | Type |
+|------------|-------------|------|
+| 1.3.6.1.4.1.9 | Cisco | Switch |
+| 1.3.6.1.4.1.14988 | MikroTik | Router |
+| 1.3.6.1.4.1.2636 | Juniper | Router |
+| 1.3.6.1.4.1.11 | HP/Aruba | Switch |
+| 1.3.6.1.4.1.41112 | Ubiquiti | Access Point |
+| 1.3.6.1.4.1.674 | Dell | Server |
+| 1.3.6.1.4.1.6876 | VMware | Server |
+| 1.3.6.1.4.1.8072 | Net-SNMP | Server (Linux) |
+| 1.3.6.1.4.1.6574 | Synology | NAS |
+| 1.3.6.1.4.1.24681 | QNAP | NAS |
+
+**Workflow for Non-UniFi Users:**
+1. Add networks manually or via CIDR
+2. Run a Ping Scan to discover active hosts
+3. Run SNMP Scan on the discovered IPs
+4. Click "Create/Update Device" on each responding device
+5. Result: full device inventory with types, manufacturers, and locations — no UniFi required
 
 ---
 
