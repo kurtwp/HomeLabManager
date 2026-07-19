@@ -1,7 +1,7 @@
 """SSL Certificate tracking service — checks cert expiry on HTTPS services."""
 
-import ssl
-import socket
+import subprocess
+import re
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import String, Integer, DateTime, Boolean, Text
@@ -39,45 +39,75 @@ class SSLCertificate(Base):
 def check_certificate(host: str, port: int = 443, timeout: int = 5) -> dict:
     """
     Connect to a host and retrieve SSL certificate info.
+    Uses openssl s_client which handles more edge cases than Python's ssl module.
 
     Returns:
         {"success": bool, "issuer": str, "subject": str, "not_before": datetime,
          "not_after": datetime, "days_remaining": int, "error": str|None}
     """
+    import subprocess
+
     try:
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE  # Accept self-signed certs
-
-        # Try TLSv1.2+ first, fall back to more permissive settings
-        try:
-            with socket.create_connection((host, port), timeout=timeout) as sock:
-                with context.wrap_socket(sock, server_hostname=host) as ssock:
-                    cert = ssock.getpeercert(binary_form=True)
-        except (ssl.SSLError, OSError):
-            # Retry with minimum TLS version lowered and no SNI
-            context2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            context2.check_hostname = False
-            context2.verify_mode = ssl.CERT_NONE
-            context2.minimum_version = ssl.TLSVersion.TLSv1
-            with socket.create_connection((host, port), timeout=timeout) as sock:
-                with context2.wrap_socket(sock) as ssock:
-                    cert = ssock.getpeercert(binary_form=True)
-
-        # Parse the DER cert
-        from ssl import DER_cert_to_PEM_cert
-        import subprocess
-
-        pem_cert = DER_cert_to_PEM_cert(cert)
-
-        # Use openssl to parse dates and subject (more reliable than manual ASN.1)
+        # Use openssl s_client to fetch the cert — handles more TLS quirks
+        cmd = [
+            "openssl", "s_client",
+            "-connect", f"{host}:{port}",
+            "-servername", host,
+            "-showcerts",
+        ]
         result = subprocess.run(
-            ["openssl", "x509", "-noout", "-dates", "-subject", "-issuer"],
-            input=pem_cert, capture_output=True, text=True, timeout=5,
+            cmd,
+            input="",  # Send empty input to close connection
+            capture_output=True, text=True, timeout=timeout + 5,
         )
 
-        if result.returncode != 0:
-            return {"success": False, "error": f"openssl parse error: {result.stderr}"}
+        # Extract the first certificate from output
+        cert_pem = ""
+        in_cert = False
+        for line in result.stdout.split("\n"):
+            if "-----BEGIN CERTIFICATE-----" in line:
+                in_cert = True
+                cert_pem = line + "\n"
+            elif "-----END CERTIFICATE-----" in line:
+                cert_pem += line + "\n"
+                break
+            elif in_cert:
+                cert_pem += line + "\n"
+
+        if not cert_pem:
+            # Try without -servername (some devices don't support SNI)
+            cmd_no_sni = [
+                "openssl", "s_client",
+                "-connect", f"{host}:{port}",
+                "-showcerts",
+            ]
+            result = subprocess.run(
+                cmd_no_sni,
+                input="",
+                capture_output=True, text=True, timeout=timeout + 5,
+            )
+            for line in result.stdout.split("\n"):
+                if "-----BEGIN CERTIFICATE-----" in line:
+                    in_cert = True
+                    cert_pem = line + "\n"
+                elif "-----END CERTIFICATE-----" in line:
+                    cert_pem += line + "\n"
+                    break
+                elif in_cert:
+                    cert_pem += line + "\n"
+
+        if not cert_pem:
+            stderr_snippet = result.stderr[:200] if result.stderr else "No certificate received"
+            return {"success": False, "error": f"No certificate found: {stderr_snippet}"}
+
+        # Parse the certificate with openssl x509
+        parse_result = subprocess.run(
+            ["openssl", "x509", "-noout", "-dates", "-subject", "-issuer"],
+            input=cert_pem, capture_output=True, text=True, timeout=5,
+        )
+
+        if parse_result.returncode != 0:
+            return {"success": False, "error": f"Certificate parse error: {parse_result.stderr[:200]}"}
 
         # Parse output
         not_before = None
@@ -85,7 +115,7 @@ def check_certificate(host: str, port: int = 443, timeout: int = 5) -> dict:
         subject = ""
         issuer = ""
 
-        for line in result.stdout.strip().split("\n"):
+        for line in parse_result.stdout.strip().split("\n"):
             if line.startswith("notBefore="):
                 date_str = line.split("=", 1)[1]
                 not_before = _parse_openssl_date(date_str)
@@ -113,12 +143,10 @@ def check_certificate(host: str, port: int = 443, timeout: int = 5) -> dict:
             "error": None,
         }
 
-    except socket.timeout:
+    except subprocess.TimeoutExpired:
         return {"success": False, "error": f"Connection timed out ({host}:{port})"}
-    except ConnectionRefusedError:
-        return {"success": False, "error": f"Connection refused ({host}:{port})"}
-    except OSError as e:
-        return {"success": False, "error": f"Connection error: {e}"}
+    except FileNotFoundError:
+        return {"success": False, "error": "openssl not found. Install with: sudo apt install openssl"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
