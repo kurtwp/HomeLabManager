@@ -516,6 +516,35 @@ def _render_save_snmp_button(info):
         if not existing:
             existing = s.query(DevModel).filter(DevModel.name == device_name).first()
 
+        # If IP doesn't exist in DB, create it first
+        if not ip_entry:
+            from app.models.network import Network as NetModel
+            import ipaddress as _ipa
+            # Find matching network
+            target_net = None
+            for net in s.query(NetModel).all():
+                try:
+                    if _ipa.ip_address(info.ip) in _ipa.ip_network(net.cidr, strict=False):
+                        target_net = net
+                        break
+                except ValueError:
+                    continue
+
+            if target_net:
+                from app.models.ip_address import IPAddress as IPModel, AssignmentType, IPStatus
+                from datetime import datetime, timezone
+                ip_entry = IPModel(
+                    address=info.ip,
+                    network_id=target_net.id,
+                    hostname=info.sys_name or None,
+                    assignment_type=AssignmentType.STATIC,
+                    status=IPStatus.ACTIVE,
+                    last_seen=datetime.now(timezone.utc),
+                    source="snmp_discovery",
+                )
+                s.add(ip_entry)
+                s.flush()
+
         if existing:
             # Update existing device
             if manufacturer and not existing.manufacturer:
