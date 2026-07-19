@@ -388,7 +388,7 @@ def render_snmp():
                                                     note_body += f"**Interfaces ({info.interface_count}):**\n\n"
                                                     note_body += "| Name | Status | Speed | MAC |\n|------|--------|-------|-----|\n"
                                                     for iface in info.interfaces[:15]:
-                                                        status = "Up" if iface["status"] == "up" else "Down"
+                                                        status = "🟢 Up" if iface["status"] == "up" else "🔴 Down" if iface["status"] == "down" else iface["status"]
                                                         note_body += f"| {iface['name']} | {status} | {iface['speed'] or '—'} | {iface['mac'] or '—'} |\n"
                                                 note = Note(
                                                     title=f"SNMP Query — {info.sys_name or info.ip}",
