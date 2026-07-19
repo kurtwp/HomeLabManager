@@ -10,6 +10,8 @@ Access via the **Monitor** dropdown in the top navigation bar.
 |------|-------|---------|
 | Uptime Monitor | `/uptime` | Ping (ICMP) monitoring of host reachability |
 | Port Monitor | `/port-monitor` | TCP port monitoring of service availability |
+| SSL Certificates | `/ssl-tracker` | Monitor TLS certificate expiry dates |
+| Domain Tracker | `/domain-tracker` | Monitor domain registration expiry dates |
 | Firmware Tracker | `/firmware` | Track UniFi device firmware versions |
 
 ---
@@ -132,6 +134,46 @@ A host can respond to ping while a service on it is down — that's why you'd mo
 
 ---
 
+## SSL Certificates
+
+**Purpose:** Monitor TLS/SSL certificate expiry dates on internal HTTPS services.
+
+**Access:** Monitor → SSL Certificates, or `/ssl-tracker`
+
+**Features:**
+- Checks any host:port for certificate details (works with self-signed certs)
+- Automatic checks every 12 hours
+- Notifications when certs enter the warning window (configurable: 7/14/30/60/90 days)
+- Test Connection button before saving
+- Status badges: Valid, Expiring Soon, Expired, Error
+- Shows issuer, subject, validity dates, days remaining
+
+**Common services to monitor:** UniFi (443), Proxmox (8006), Synology (5001), Home Assistant (8123)
+
+See [SSL Tracker](ssl-tracker) for full documentation.
+
+---
+
+## Domain Tracker
+
+**Purpose:** Monitor domain registration expiry dates via WHOIS lookup.
+
+**Access:** Monitor → Domain Tracker, or `/domain-tracker`
+
+**Features:**
+- WHOIS-based lookup for registrar, creation/expiry dates, name servers
+- Automatic daily checks
+- Notifications when domains enter the warning window
+- Auto-renew flag for tracking which domains need manual attention
+- Test WHOIS Lookup button before saving
+- Status badges: Valid, Expiring Soon, Expired
+
+**Requires:** `whois` package (`sudo apt install whois`)
+
+See [Domain Tracker](domain-tracker) for full documentation.
+
+---
+
 ## Firmware Tracker
 
 **Purpose:** Monitor UniFi device firmware versions and get notified of available updates.
@@ -178,10 +220,17 @@ When a firmware update is newly detected, an alert is sent through all enabled n
 
 ## Dashboard Integration
 
-The main dashboard shows both monitor widgets side by side:
+The main dashboard shows monitor widgets in two rows:
 
+**Row 1:**
 - **Uptime Monitor** (purple) — up/down count for ping monitors, clickable → `/uptime`
 - **Port Monitor** (teal) — up/down count for port monitors, clickable → `/port-monitor`
+
+**Row 2:**
+- **SSL Certificates** (blue) — valid/expiring/expired counts, clickable → `/ssl-tracker`
+- **Domain Tracker** (purple) — valid/expiring/expired counts, clickable → `/domain-tracker`
+
+Widgets only appear when there are items being tracked.
 
 ---
 
@@ -198,6 +247,8 @@ All three monitor types integrate with the notification system:
 | Service still down (24h reminder) | Port Monitor | High |
 | Service recovered | Port Monitor | Normal |
 | Firmware update available | Firmware Tracker | Low |
+| SSL certificate expiring | SSL Certificates | Normal/High |
+| Domain registration expiring | Domain Tracker | Normal/High |
 
 The 24-hour reminder repeats daily until the host/service recovers or the monitor is removed.
 

@@ -64,6 +64,9 @@ Clicking a device name navigates to `/devices/{id}`, which provides a full view:
 - Creation timestamp
 - All associated IP addresses (clickable links to IP detail pages)
 
+### Wake-on-LAN
+If the device has a MAC address, a green **Wake on LAN** button appears. Click it to send a magic packet to power on the device remotely.
+
 ### UniFi Device Health (Ubiquiti devices only)
 For devices with manufacturer "Ubiquiti" and a MAC address, live health stats are fetched:
 - **Uptime** — how long the device has been running
@@ -74,7 +77,7 @@ For devices with manufacturer "Ubiquiti" and a MAC address, live health stats ar
 - **PoE Power** — total wattage used vs max, plus a per-port breakdown table showing connected device, power draw, voltage, current, and PoE class
 
 ### Notes
-A full notes editor for recording maintenance info, configuration details, or anything relevant to the device.
+A full notes editor for recording maintenance info, configuration details, or anything relevant to the device. Notes are archived (not deleted) when a device is removed.
 
 ### Tags
 Assign and remove tags for categorization. Tags are shared across devices, networks, and IPs.
@@ -84,6 +87,12 @@ Track where the device lives physically:
 - **Location** — room or building
 - **Rack Position** — rack unit (e.g. "U12")
 - **Shelf** — shelf label
+
+### Warranty & Lifecycle
+Track device lifecycle dates:
+- **Purchase Date** — when the device was bought
+- **Warranty Expiry** — when warranty ends (dashboard warns at 30 days)
+- **End of Life Date** — when vendor stops supporting the product
 
 ### Custom Fields
 Any custom fields defined for the "device" entity type are shown and editable here.
