@@ -524,9 +524,10 @@ def _render_save_snmp_button(info):
                 existing.device_type_id = device_type_id
             if info.sys_location and not existing.location:
                 existing.location = info.sys_location
+            existing_name = existing.name
             s.commit()
             s.close()
-            ui.notify(f"Updated existing device '{existing.name}'", type="positive")
+            ui.notify(f"Updated existing device '{existing_name}'", type="positive")
         else:
             # Create new device
             new_dev = DevModel(
