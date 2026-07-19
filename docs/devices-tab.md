@@ -53,6 +53,8 @@ Click **Add Device** to open the creation dialog:
 - **Individual** — click the red trash icon on any device card (with confirmation)
 - **Bulk** — the "Delete All" button removes every device (with confirmation warning)
 
+When a device is deleted, its notes are archived with the original device name for future reference. Archived notes don't appear on other devices but remain searchable.
+
 ## Device Detail Page
 
 Clicking a device name navigates to `/devices/{id}`, which provides a full view:

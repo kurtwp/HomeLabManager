@@ -54,7 +54,10 @@ Click **Add IP** to open the creation dialog:
 - **Individual** — red trash icon on any IP card (with confirmation)
 - **Bulk** — "Delete All" button removes every IP address (changelog history is preserved)
 
-When an IP is deleted, its linked device is also removed if it was the only IP associated with that device. If the device has other IPs, only the IP is deleted.
+When an IP is deleted:
+- Its linked device is also removed if it was the only IP associated with that device (if the device has other IPs, only the IP is deleted)
+- Notes attached to the IP are **archived** (not permanently deleted) with the original IP address and hostname stored for future reference
+- Archived notes don't appear on newly created IPs but remain in the database for retrieval
 
 ## IP Detail Page
 
