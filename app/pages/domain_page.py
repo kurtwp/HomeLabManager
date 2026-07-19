@@ -206,6 +206,10 @@ def render_domain_tracker():
                       auto_renew=add_auto_renew.value,
                       notes=add_notes.value.strip() or None)
             ui.notify("Domain added!", type="positive")
+            add_domain_input.value = ""
+            add_auto_renew.value = False
+            add_notes.value = ""
+            test_result.text = ""
             add_dialog.close()
             refresh_list()
 
