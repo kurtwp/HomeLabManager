@@ -107,6 +107,11 @@ def delete_device(session: Session, device_id: int) -> bool:
         entity_name=device.name,
         old_values={"name": device.name, "manufacturer": device.manufacturer},
     )
+
+    # Delete associated notes
+    from app.models.note import Note
+    session.query(Note).filter(Note.entity_type == "device", Note.entity_id == device.id).delete()
+
     session.delete(device)
     session.commit()
     return True

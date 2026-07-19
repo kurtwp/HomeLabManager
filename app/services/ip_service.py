@@ -139,6 +139,11 @@ def delete_ip(session: Session, ip_id: int) -> bool:
             "notes": ip.notes,
         },
     )
+
+    # Delete associated notes
+    from app.models.note import Note
+    session.query(Note).filter(Note.entity_type == "ip", Note.entity_id == ip.id).delete()
+
     session.delete(ip)
 
     # Delete the orphaned device
