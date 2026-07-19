@@ -49,9 +49,20 @@ def check_certificate(host: str, port: int = 443, timeout: int = 5) -> dict:
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE  # Accept self-signed certs
 
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            with context.wrap_socket(sock, server_hostname=host) as ssock:
-                cert = ssock.getpeercert(binary_form=True)
+        # Try TLSv1.2+ first, fall back to more permissive settings
+        try:
+            with socket.create_connection((host, port), timeout=timeout) as sock:
+                with context.wrap_socket(sock, server_hostname=host) as ssock:
+                    cert = ssock.getpeercert(binary_form=True)
+        except (ssl.SSLError, OSError):
+            # Retry with minimum TLS version lowered and no SNI
+            context2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context2.check_hostname = False
+            context2.verify_mode = ssl.CERT_NONE
+            context2.minimum_version = ssl.TLSVersion.TLSv1
+            with socket.create_connection((host, port), timeout=timeout) as sock:
+                with context2.wrap_socket(sock) as ssock:
+                    cert = ssock.getpeercert(binary_form=True)
 
         # Parse the DER cert
         from ssl import DER_cert_to_PEM_cert
