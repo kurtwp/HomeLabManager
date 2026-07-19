@@ -18,11 +18,12 @@ def page_layout(title: str = "Home Lab Manager"):
     dark = ui.dark_mode(is_dark)
 
     ui.add_css("""
-        .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; }
+        .nav-link { color: white !important; text-decoration: none; font-size: 1.1rem; font-weight: 400; }
         .nav-link:hover { opacity: 0.8; }
         .page-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
         body.body--dark .q-card { background: #1e1e1e; }
         body.body--dark .q-table { background: #1e1e1e; }
+        .q-btn--flat.nav-btn { font-size: 1.1rem !important; font-weight: 400 !important; text-transform: none !important; }
     """)
 
     with ui.header().classes("bg-primary items-center justify-between px-6 py-3"):
@@ -35,7 +36,7 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("Networks", "/networks").classes("nav-link")
 
             # Discovery dropdown (UniFi, SNMP, Nmap, Ping, Scheduler)
-            with ui.button("Discovery").props("flat color=white no-caps"):
+            with ui.button("Discovery").props("flat color=white no-caps").classes("nav-btn"):
                 with ui.menu():
                     ui.menu_item("UniFi Sync (Local)", lambda: ui.navigate.to("/unifi"))
                     ui.menu_item("Site Manager (Cloud)", lambda: ui.navigate.to("/site-manager"))
@@ -47,7 +48,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Scheduled Scans", lambda: ui.navigate.to("/scheduler"))
 
             # Monitor dropdown
-            with ui.button("Monitor").props("flat color=white no-caps"):
+            with ui.button("Monitor").props("flat color=white no-caps").classes("nav-btn"):
                 with ui.menu():
                     ui.menu_item("Uptime Monitor", lambda: ui.navigate.to("/uptime"))
                     ui.menu_item("Port Monitor", lambda: ui.navigate.to("/port-monitor"))
@@ -56,7 +57,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Firmware Tracker", lambda: ui.navigate.to("/firmware"))
 
             # Devices dropdown — dynamically shows types that have devices
-            with ui.button("Devices").props("flat color=white no-caps"):
+            with ui.button("Devices").props("flat color=white no-caps").classes("nav-btn"):
                 with ui.menu():
                     ui.menu_item("All Devices", lambda: ui.navigate.to("/devices"))
                     ui.separator()
@@ -92,7 +93,7 @@ def page_layout(title: str = "Home Lab Manager"):
             ui.link("Docs", "/docs").classes("nav-link")
 
             # Telephony dropdown
-            with ui.button("Telephony").props("flat color=white no-caps"):
+            with ui.button("Telephony").props("flat color=white no-caps").classes("nav-btn"):
                 with ui.menu():
                     ui.menu_item("Dashboard", lambda: ui.navigate.to("/pstn"))
                     ui.menu_item("Number Ranges", lambda: ui.navigate.to("/pstn/ranges"))
