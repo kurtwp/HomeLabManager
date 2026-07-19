@@ -97,8 +97,16 @@ def check_certificate(host: str, port: int = 443, timeout: int = 5) -> dict:
                     cert_pem += line + "\n"
 
         if not cert_pem:
-            stderr_snippet = result.stderr[:200] if result.stderr else "No certificate received"
-            return {"success": False, "error": f"No certificate found: {stderr_snippet}"}
+            # Provide a clear error message
+            if "unexpected eof" in (result.stderr or "").lower():
+                return {"success": False, "error": f"Server has no SSL certificate installed ({host}:{port}). The server accepts connections but does not present a TLS certificate."}
+            elif "connection refused" in (result.stderr or "").lower():
+                return {"success": False, "error": f"Connection refused ({host}:{port})"}
+            elif "timed out" in (result.stderr or "").lower() or "no route" in (result.stderr or "").lower():
+                return {"success": False, "error": f"Cannot reach {host}:{port} (timeout or no route)"}
+            else:
+                stderr_snippet = result.stderr[:150] if result.stderr else "No certificate received"
+                return {"success": False, "error": f"No SSL certificate found on {host}:{port} — {stderr_snippet}"}
 
         # Parse the certificate with openssl x509
         parse_result = subprocess.run(
