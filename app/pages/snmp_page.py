@@ -179,6 +179,7 @@ def render_snmp():
 
                         # Get the network CIDR and generate all host IPs
                         import ipaddress as ipa
+                        import threading
                         net_obj = session.query(Network).filter(Network.id == net_select.value).first()
                         if not net_obj:
                             ui.notify("Network not found", type="warning")
@@ -201,33 +202,38 @@ def render_snmp():
                                 ui.spinner(size="lg")
                                 ui.label(
                                     f"Scanning {len(ip_list)} IPs in {net_obj.cidr} for SNMP... "
-                                    f"This may take up to {len(ip_list) * int(timeout_input.value or 2) // 20 + 1} seconds."
+                                    f"(~{len(ip_list) * int(timeout_input.value or 2) // 20 + 1} seconds)"
                                 ).classes("text-sm text-gray-500")
 
                         args = get_snmp_args()
-                        results = scan_network_snmp(ip_list, **args)
 
-                        network_results.clear()
-                        with network_results:
-                            if not results:
+                        def _run_scan():
+                            results = scan_network_snmp(ip_list, **args)
+
+                            network_results.clear()
+                            with network_results:
+                                if not results:
+                                    ui.label(
+                                        "No SNMP-enabled devices found. Check community string."
+                                    ).classes("text-orange")
+                                    ui.notify("Scan complete — no SNMP devices found", type="warning")
+                                    return
+
+                                ui.notify(f"Scan complete — {len(results)} SNMP devices found", type="positive")
                                 ui.label(
-                                    "No SNMP-enabled devices found. Check community string."
-                                ).classes("text-orange")
-                                ui.notify("Scan complete — no SNMP devices found", type="warning")
-                                return
+                                    f"Found {len(results)} SNMP-enabled devices out of {len(ip_list)} probed"
+                                ).classes("text-lg font-semibold text-green mb-4")
 
-                            ui.notify(f"Scan complete — {len(results)} SNMP devices found", type="positive")
-                            ui.label(
-                                f"Found {len(results)} SNMP-enabled devices out of {len(ip_list)} probed"
-                            ).classes("text-lg font-semibold text-green mb-4")
+                                for info in sorted(results, key=lambda x: x.ip):
+                                    with ui.expansion(
+                                        f"{info.ip} — {info.sys_name or info.sys_descr[:60] or 'Unknown'}",
+                                        icon="router",
+                                    ).classes("w-full"):
+                                        _render_device_info(info)
+                                        _render_save_snmp_button(info)
 
-                            for info in sorted(results, key=lambda x: x.ip):
-                                with ui.expansion(
-                                    f"{info.ip} — {info.sys_name or info.sys_descr[:60] or 'Unknown'}",
-                                    icon="router",
-                                ).classes("w-full"):
-                                    _render_device_info(info)
-                                    _render_save_snmp_button(info)
+                        thread = threading.Thread(target=_run_scan, daemon=True)
+                        thread.start()
 
                     ui.button(
                         "Scan for SNMP Devices", icon="radar", on_click=scan_network_for_snmp
