@@ -110,11 +110,14 @@ def delete_device(session: Session, device_id: int) -> bool:
 
     # Archive associated notes (preserve for future reference)
     from app.models.note import Note
+    # Get the device's primary IP for the archive reference
+    device_ip = device.ip_addresses[0].address if device.ip_addresses else None
     notes_to_archive = session.query(Note).filter(
         Note.entity_type == "device", Note.entity_id == device.id, Note.is_archived == 0
     ).all()
     for note in notes_to_archive:
         note.is_archived = 1
+        note.archived_ip = device_ip
         note.archived_hostname = device.name
 
     session.delete(device)

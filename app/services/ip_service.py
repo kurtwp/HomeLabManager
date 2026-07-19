@@ -162,6 +162,14 @@ def delete_ip(session: Session, ip_id: int) -> bool:
             entity_name=device_to_delete.name,
             old_values={"name": device_to_delete.name, "reason": "last IP deleted"},
         )
+        # Archive device notes too
+        device_notes = session.query(Note).filter(
+            Note.entity_type == "device", Note.entity_id == device_to_delete.id, Note.is_archived == 0
+        ).all()
+        for note in device_notes:
+            note.is_archived = 1
+            note.archived_ip = ip.address
+            note.archived_hostname = device_to_delete.name
         session.delete(device_to_delete)
 
     session.commit()
