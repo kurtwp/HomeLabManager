@@ -220,8 +220,7 @@ def render_snmp():
                                     icon="router",
                                 ).classes("w-full"):
                                     _render_device_info(info)
-                                    # Option to update device record
-                                    _render_update_button(session, info)
+                                    _render_save_snmp_button(info)
 
                     ui.button(
                         "Scan for SNMP Devices", icon="radar", on_click=scan_network_for_snmp
@@ -304,7 +303,7 @@ def render_snmp():
                                         icon="check_circle",
                                     ).classes("w-full"):
                                         _render_device_info(info)
-                                        _render_update_button(session, info)
+                                        _render_save_snmp_button(info)
 
                             if not_responding:
                                 with ui.expansion(
