@@ -7,6 +7,10 @@ from app.models.ip_address import IPAddress
 from app.models.device import Device
 from app.models.network import Network
 from app.services.snmp_service import get_device_info, scan_network_snmp
+from app.services.snmp_profiles import (
+    get_all_profiles, create_profile, delete_profile,
+    identify_device_type, identify_manufacturer,
+)
 from app.services.network_service import get_all_networks
 from app.services.device_service import update_device
 from app.pages.layout import page_layout
@@ -469,6 +473,76 @@ def _render_save_snmp_button(info):
         s.close()
         ui.notify(f"SNMP results saved to {info.ip}", type="positive")
 
-    ui.button(
-        "Save to Database", icon="save", on_click=save_snmp_to_db
-    ).props("color=primary outline").classes("mt-3")
+    def create_device_from_snmp():
+        """Auto-create a Device record from SNMP data."""
+        from app.database.db import get_session_direct
+        from app.models.ip_address import IPAddress as IP
+        from app.models.device import Device as DevModel, DeviceType as DTModel
+
+        s = get_session_direct()
+        ip_entry = s.query(IP).filter(IP.address == info.ip).first()
+
+        # Identify device type and manufacturer from SNMP
+        dev_type_name = identify_device_type(info.sys_object_id)
+        manufacturer = identify_manufacturer(info.sys_object_id, info.sys_descr)
+
+        # Find or create the device type
+        device_type_id = None
+        if dev_type_name:
+            dt = s.query(DTModel).filter(DTModel.name == dev_type_name).first()
+            if not dt:
+                dt = DTModel(name=dev_type_name)
+                s.add(dt)
+                s.flush()
+            device_type_id = dt.id
+
+        # Check if device already exists (by name or IP link)
+        device_name = info.sys_name or f"SNMP-{info.ip}"
+        existing = None
+        if ip_entry and ip_entry.device_id:
+            existing = s.query(DevModel).filter(DevModel.id == ip_entry.device_id).first()
+        if not existing:
+            existing = s.query(DevModel).filter(DevModel.name == device_name).first()
+
+        if existing:
+            # Update existing device
+            if manufacturer and not existing.manufacturer:
+                existing.manufacturer = manufacturer
+            if device_type_id and not existing.device_type_id:
+                existing.device_type_id = device_type_id
+            if info.sys_location and not existing.location:
+                existing.location = info.sys_location
+            s.commit()
+            s.close()
+            ui.notify(f"Updated existing device '{existing.name}'", type="positive")
+        else:
+            # Create new device
+            new_dev = DevModel(
+                name=device_name,
+                manufacturer=manufacturer,
+                device_type_id=device_type_id,
+                location=info.sys_location or None,
+                notes=f"Discovered via SNMP\nDescription: {info.sys_descr or '—'}\nObject ID: {info.sys_object_id or '—'}",
+            )
+            s.add(new_dev)
+            s.flush()
+
+            # Link to IP
+            if ip_entry:
+                ip_entry.device_id = new_dev.id
+                if info.sys_name and not ip_entry.hostname:
+                    ip_entry.hostname = info.sys_name
+
+            s.commit()
+            s.close()
+            ui.notify(f"Created device '{device_name}' ({manufacturer or 'Unknown'} {dev_type_name or ''})", type="positive")
+
+    with ui.row().classes("gap-2 mt-3"):
+        ui.button(
+            "Save as Note", icon="note_add", on_click=save_snmp_to_db
+        ).props("color=primary outline")
+        ui.button(
+            "Create/Update Device", icon="add_circle", on_click=create_device_from_snmp
+        ).props("color=green outline").tooltip(
+            "Auto-create a device record from SNMP data (type, manufacturer, location)"
+        )
