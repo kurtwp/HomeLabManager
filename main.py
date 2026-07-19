@@ -472,6 +472,12 @@ def inventory_export_page():
     render_inventory_export()
 
 
+@ui.page("/archived-notes")
+def archived_notes_page():
+    from app.pages.archived_notes_page import render_archived_notes
+    render_archived_notes()
+
+
 # --- PSTN / Telephony routes ---
 
 @ui.page("/pstn")

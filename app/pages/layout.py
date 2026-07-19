@@ -120,6 +120,7 @@ def page_layout(title: str = "Home Lab Manager"):
                     ui.menu_item("Custom Fields", lambda: ui.navigate.to("/custom-fields"))
                     ui.menu_item("MAC Watchlist", lambda: ui.navigate.to("/mac-watchlist"))
                     ui.menu_item("Inventory Export", lambda: ui.navigate.to("/inventory-export"))
+                    ui.menu_item("Archived Notes", lambda: ui.navigate.to("/archived-notes"))
                     ui.separator()
                     ui.menu_item("Notifications", lambda: ui.navigate.to("/notifications"))
                     ui.menu_item("Webhook Triggers", lambda: ui.navigate.to("/webhook-triggers"))
