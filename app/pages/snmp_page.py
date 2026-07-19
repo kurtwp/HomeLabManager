@@ -224,6 +224,193 @@ def render_snmp():
                                     f"Found {len(results)} SNMP-enabled devices out of {len(ip_list)} probed"
                                 ).classes("text-lg font-semibold text-green mb-4")
 
+                                # Bulk action buttons
+                                def create_all_devices():
+                                    from app.database.db import get_session_direct
+                                    from app.models.ip_address import IPAddress as IP
+                                    from app.models.device import Device as DevModel, DeviceType as DTModel
+                                    from app.models.network import Network as NetModel
+                                    import ipaddress as _ipa
+                                    from datetime import datetime, timezone
+                                    from app.services.oui_service import lookup_manufacturer as oui_lookup
+
+                                    s = get_session_direct()
+                                    created = 0
+                                    updated = 0
+                                    for info in results:
+                                        try:
+                                            ip_entry = s.query(IP).filter(IP.address == info.ip).first()
+
+                                            # Create IP if not exists
+                                            if not ip_entry:
+                                                target_net = None
+                                                for net in s.query(NetModel).all():
+                                                    try:
+                                                        if _ipa.ip_address(info.ip) in _ipa.ip_network(net.cidr, strict=False):
+                                                            target_net = net
+                                                            break
+                                                    except ValueError:
+                                                        continue
+                                                if target_net:
+                                                    from app.models.ip_address import AssignmentType, IPStatus
+                                                    ip_entry = IP(
+                                                        address=info.ip, network_id=target_net.id,
+                                                        hostname=info.sys_name or None,
+                                                        assignment_type=AssignmentType.STATIC,
+                                                        status=IPStatus.ACTIVE,
+                                                        last_seen=datetime.now(timezone.utc),
+                                                        source="snmp_discovery",
+                                                    )
+                                                    s.add(ip_entry)
+                                                    s.flush()
+
+                                            # Identify device
+                                            dev_type_name = identify_device_type(info.sys_object_id)
+                                            manufacturer = identify_manufacturer(info.sys_object_id, info.sys_descr)
+                                            if (not manufacturer or manufacturer == "Linux") and ip_entry and ip_entry.mac_address:
+                                                try:
+                                                    oui_mfg = oui_lookup(ip_entry.mac_address)
+                                                    if oui_mfg:
+                                                        manufacturer = oui_mfg
+                                                        oui_type_map = {"synology": "NAS", "qnap": "NAS", "cisco": "Switch", "ubiquiti": "Access Point", "mikrotik": "Router"}
+                                                        for kw, dtype in oui_type_map.items():
+                                                            if kw in oui_mfg.lower():
+                                                                dev_type_name = dtype
+                                                                break
+                                                except Exception:
+                                                    pass
+
+                                            device_type_id = None
+                                            if dev_type_name:
+                                                dt = s.query(DTModel).filter(DTModel.name == dev_type_name).first()
+                                                if not dt:
+                                                    dt = DTModel(name=dev_type_name)
+                                                    s.add(dt)
+                                                    s.flush()
+                                                device_type_id = dt.id
+
+                                            device_name = info.sys_name or f"SNMP-{info.ip}"
+                                            existing = None
+                                            if ip_entry and ip_entry.device_id:
+                                                existing = s.query(DevModel).filter(DevModel.id == ip_entry.device_id).first()
+                                            if not existing:
+                                                existing = s.query(DevModel).filter(DevModel.name == device_name).first()
+
+                                            # Get MAC
+                                            mac = None
+                                            if ip_entry and ip_entry.mac_address:
+                                                mac = ip_entry.mac_address
+                                            elif info.interfaces:
+                                                for iface in info.interfaces:
+                                                    if iface.get("mac") and iface["mac"] != "—" and iface["name"] != "lo":
+                                                        mac = iface["mac"].upper().replace(" ", ":")
+                                                        break
+
+                                            if existing:
+                                                if manufacturer and (not existing.manufacturer or existing.manufacturer == "Linux"):
+                                                    existing.manufacturer = manufacturer
+                                                if device_type_id and not existing.device_type_id:
+                                                    existing.device_type_id = device_type_id
+                                                if info.sys_location and not existing.location:
+                                                    existing.location = info.sys_location
+                                                if info.sys_descr and not existing.model:
+                                                    existing.model = info.sys_descr[:255]
+                                                if mac and not existing.mac_address:
+                                                    existing.mac_address = mac
+                                                updated += 1
+                                            else:
+                                                new_dev = DevModel(
+                                                    name=device_name, manufacturer=manufacturer,
+                                                    model=info.sys_descr[:255] if info.sys_descr else None,
+                                                    mac_address=mac, device_type_id=device_type_id,
+                                                    location=info.sys_location or None,
+                                                    notes=f"Discovered via SNMP\nObject ID: {info.sys_object_id or '—'}",
+                                                )
+                                                s.add(new_dev)
+                                                s.flush()
+                                                if ip_entry:
+                                                    ip_entry.device_id = new_dev.id
+                                                created += 1
+                                        except Exception:
+                                            pass
+
+                                    s.commit()
+                                    s.close()
+                                    ui.notify(f"Done: {created} created, {updated} updated", type="positive")
+
+                                def save_all_notes():
+                                    from app.database.db import get_session_direct
+                                    from app.models.ip_address import IPAddress as IP
+                                    from app.models.note import Note
+                                    from app.models.network import Network as NetModel
+                                    import ipaddress as _ipa
+                                    from datetime import datetime, timezone
+
+                                    s = get_session_direct()
+                                    saved = 0
+                                    for info in results:
+                                        try:
+                                            ip_entry = s.query(IP).filter(IP.address == info.ip).first()
+                                            if not ip_entry:
+                                                # Create IP first
+                                                target_net = None
+                                                for net in s.query(NetModel).all():
+                                                    try:
+                                                        if _ipa.ip_address(info.ip) in _ipa.ip_network(net.cidr, strict=False):
+                                                            target_net = net
+                                                            break
+                                                    except ValueError:
+                                                        continue
+                                                if target_net:
+                                                    from app.models.ip_address import AssignmentType, IPStatus
+                                                    ip_entry = IP(
+                                                        address=info.ip, network_id=target_net.id,
+                                                        hostname=info.sys_name or None,
+                                                        assignment_type=AssignmentType.STATIC,
+                                                        status=IPStatus.ACTIVE,
+                                                        last_seen=datetime.now(timezone.utc),
+                                                        source="snmp_discovery",
+                                                    )
+                                                    s.add(ip_entry)
+                                                    s.flush()
+
+                                            if ip_entry:
+                                                note_body = ""
+                                                if info.sys_name:
+                                                    note_body += f"**System Name:** {info.sys_name}\n\n"
+                                                if info.sys_descr:
+                                                    note_body += f"**Description:** {info.sys_descr}\n\n"
+                                                if info.sys_location:
+                                                    note_body += f"**Location:** {info.sys_location}\n\n"
+                                                if info.sys_uptime:
+                                                    note_body += f"**Uptime:** {info.sys_uptime}\n\n"
+                                                if info.interfaces:
+                                                    note_body += f"**Interfaces ({info.interface_count}):**\n\n"
+                                                    note_body += "| Name | Status | Speed | MAC |\n|------|--------|-------|-----|\n"
+                                                    for iface in info.interfaces[:15]:
+                                                        status = "Up" if iface["status"] == "up" else "Down"
+                                                        note_body += f"| {iface['name']} | {status} | {iface['speed'] or '—'} | {iface['mac'] or '—'} |\n"
+                                                note = Note(
+                                                    title=f"SNMP Query — {info.sys_name or info.ip}",
+                                                    body=note_body, entity_type="ip", entity_id=ip_entry.id,
+                                                )
+                                                s.add(note)
+                                                if info.sys_name and not ip_entry.hostname:
+                                                    ip_entry.hostname = info.sys_name
+                                                saved += 1
+                                        except Exception:
+                                            pass
+
+                                    s.commit()
+                                    s.close()
+                                    ui.notify(f"Saved {saved} notes", type="positive")
+
+                                with ui.row().classes("gap-2 mb-4"):
+                                    ui.button("Create/Update All Devices", icon="add_circle",
+                                              on_click=create_all_devices).props("color=green")
+                                    ui.button("Save All Notes", icon="note_add",
+                                              on_click=save_all_notes).props("color=blue outline")
+
                                 for info in sorted(results, key=lambda x: x.ip):
                                     with ui.expansion(
                                         f"{info.ip} — {info.sys_name or info.sys_descr[:60] or 'Unknown'}",
