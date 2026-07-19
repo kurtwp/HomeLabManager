@@ -466,6 +466,12 @@ def domain_tracker_page():
     render_domain_tracker()
 
 
+@ui.page("/inventory-export")
+def inventory_export_page():
+    from app.pages.inventory_export_page import render_inventory_export
+    render_inventory_export()
+
+
 # --- PSTN / Telephony routes ---
 
 @ui.page("/pstn")
