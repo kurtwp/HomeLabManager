@@ -60,10 +60,12 @@ def sync_firmware_info() -> dict:
                     or ""
                 )
 
-                # Check upgrade state field
+                # Check upgrade state / updatable flags
+                # UniFi Integration API v1 uses 'firmwareUpdatable' (boolean)
                 upgrade_state = dev.get("upgradeState") or dev.get("upgrade_state") or ""
                 is_upgradable = (
-                    bool(available_fw and available_fw != current_fw)
+                    dev.get("firmwareUpdatable", False)
+                    or bool(available_fw and available_fw != current_fw)
                     or upgrade_state in ("available", "pending")
                     or dev.get("upgradable", False)
                     or dev.get("isUpgradable", False)
