@@ -66,8 +66,10 @@ from app.services.uptime_service import run_checks
 scheduler.add_job(run_checks, "interval", seconds=30, id="uptime_checks", replace_existing=True)
 
 # Add firmware check job (runs every 6 hours)
-from app.services.firmware_service import sync_firmware_info
+from app.services.firmware_service import sync_firmware_info, sync_controller_updates
 scheduler.add_job(sync_firmware_info, "interval", hours=6, id="firmware_check", replace_existing=True)
+# Controller/application updates via cloud Site Manager API (runs every 6 hours)
+scheduler.add_job(sync_controller_updates, "interval", hours=6, id="controller_update_check", replace_existing=True)
 
 # Add SSL certificate check job (runs every 12 hours)
 from app.services.ssl_service import refresh_all_certificates

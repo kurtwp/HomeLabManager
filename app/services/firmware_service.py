@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.database.db import get_session
 from app.models.device_firmware import DeviceFirmware
 from app.models.firmware_history import FirmwareHistory
+from app.models.controller_firmware import ControllerFirmware
 from app.services.unifi_service import fetch_devices_from_unifi, is_configured
 
 
@@ -167,6 +168,152 @@ def sync_firmware_info() -> dict:
             "newly_available": len(newly_available),
             "errors": errors,
         }
+
+
+def sync_controller_updates() -> dict:
+    """
+    Fetch controller/application update info from the Site Manager cloud API
+    (api.ui.com) and update the controller_firmware tracking table.
+
+    The local Integration API cannot see controller-level (Network/Protect/Access/
+    Talk/...) application updates — only the cloud Site Manager API exposes them via
+    reportedState.controllers[].updateAvailable.
+
+    Returns summary: {"checked": int, "updates_available": int, "errors": list}
+    """
+    from app.services import site_manager_service
+
+    if not site_manager_service.is_configured():
+        return {"checked": 0, "updates_available": 0, "newly_available": 0,
+                "errors": ["Site Manager cloud API not configured (set UNIFI_CLOUD_API_KEY "
+                           "in .env — get it from unifi.ui.com → Settings → API Keys)"]}
+
+    try:
+        hosts = site_manager_service.fetch_hosts()
+    except Exception as e:
+        return {"checked": 0, "updates_available": 0, "newly_available": 0,
+                "errors": [f"Cloud API error: {e}"]}
+
+    with get_session() as session:
+        checked = 0
+        updates_available = 0
+        errors = []
+        newly_available = []
+        now = datetime.now(timezone.utc)
+
+        for host in hosts:
+            reported = host.get("reportedState") or {}
+            host_name = (
+                reported.get("hostname")
+                or reported.get("name")
+                or host.get("hostname")
+                or host.get("id")
+                or "UniFi Console"
+            )
+            controllers = reported.get("controllers") or []
+
+            for ctrl in controllers:
+                try:
+                    ctrl_name = ctrl.get("name") or "unknown"
+                    current = ctrl.get("version") or ""
+                    available = ctrl.get("updateAvailable")
+                    is_upgradable = bool(available)
+
+                    # Skip controllers that aren't actually installed (blank version
+                    # and no update) — reduces noise from unused applications.
+                    if not current and not available:
+                        continue
+
+                    existing = session.query(ControllerFirmware).filter(
+                        ControllerFirmware.host_name == host_name,
+                        ControllerFirmware.controller_name == ctrl_name,
+                    ).first()
+
+                    if existing:
+                        old_update_available = existing.update_available
+                        existing.current_version = current
+                        existing.available_version = available if is_upgradable else None
+                        existing.update_available = is_upgradable
+                        existing.last_checked = now
+
+                        if is_upgradable and not old_update_available:
+                            newly_available.append({
+                                "name": f"{host_name} — {ctrl_name}",
+                                "current": current,
+                                "available": available,
+                            })
+                    else:
+                        session.add(ControllerFirmware(
+                            host_name=host_name,
+                            controller_name=ctrl_name,
+                            current_version=current,
+                            available_version=available if is_upgradable else None,
+                            update_available=is_upgradable,
+                            last_checked=now,
+                        ))
+                        if is_upgradable:
+                            newly_available.append({
+                                "name": f"{host_name} — {ctrl_name}",
+                                "current": current,
+                                "available": available,
+                            })
+
+                    checked += 1
+                    if is_upgradable:
+                        updates_available += 1
+
+                except Exception as e:
+                    errors.append(f"Controller '{ctrl.get('name', '?')}': {e}")
+
+        session.commit()
+
+    # Notifications for newly discovered controller updates
+    if newly_available:
+        try:
+            from app.services.notification_service import (
+                notify_firmware_update, is_notifications_enabled
+            )
+            if is_notifications_enabled():
+                for item in newly_available:
+                    notify_firmware_update(
+                        item["name"], item["current"], item["available"]
+                    )
+        except Exception as e:
+            errors.append(f"Notification error: {e}")
+
+        try:
+            from app.services.webhook_trigger_service import fire_event
+            for item in newly_available:
+                fire_event("firmware_update", {
+                    "device": item["name"],
+                    "current_version": item["current"],
+                    "available_version": item["available"],
+                })
+        except Exception as e:
+            logger.debug("Webhook fire_event firmware_update (controller) failed: %s", e)
+
+    return {
+        "checked": checked,
+        "updates_available": updates_available,
+        "newly_available": len(newly_available),
+        "errors": errors,
+    }
+
+
+def get_all_controllers(session: Session = None) -> list[ControllerFirmware]:
+    """Get all controller/application firmware tracking records."""
+    if session is not None:
+        return (
+            session.query(ControllerFirmware)
+            .order_by(ControllerFirmware.host_name, ControllerFirmware.controller_name)
+            .all()
+        )
+    with get_session() as s:
+        return (
+            s.query(ControllerFirmware)
+            .order_by(ControllerFirmware.host_name, ControllerFirmware.controller_name)
+            .all()
+        )
 
 
 def get_all_firmware(session: Session = None) -> list[DeviceFirmware]:

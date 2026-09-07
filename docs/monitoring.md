@@ -180,20 +180,39 @@ See [Domain Tracker](domain-tracker) for full documentation.
 
 **Access:** Monitor → Firmware Tracker, or `/firmware`
 
-### How It Works
+The Firmware Tracker monitors two distinct things:
+
+1. **Device firmware** — the firmware running on individual UniFi devices (APs, switches, gateways), via the local Integration API.
+2. **Controller / application updates** — updates to the UniFi *applications* themselves (Network, Protect, Access, Talk, etc.) running on your console, via the cloud Site Manager API.
+
+### How It Works — Device Firmware
 
 1. Pulls device data from the UniFi Integration API
-2. Extracts current firmware version and available upgrade version
+2. Reads the `firmwareUpdatable` flag and available upgrade version for each device
 3. Tracks each device by MAC address
 4. When a new update is detected, sends a notification
 5. Runs automatically every 6 hours via the scheduler
 
+### How It Works — Controller / Application Updates
+
+The local Integration API **cannot** see controller/application-level updates (for example, "Network Update Available" shown in the UniFi UI). Only the cloud **Site Manager API** (`api.ui.com`) exposes them.
+
+1. Queries `GET https://api.ui.com/v1/hosts` using your `UNIFI_CLOUD_API_KEY`
+2. Reads each console's `reportedState.controllers[]` list
+3. For each application, compares `version` (current) against `updateAvailable`
+4. Surfaces updates like `network 10.5.67 → 10.6.101` or `access → 4.3.7+12090`
+5. Fires notifications and webhook triggers when a new update is first detected
+6. Runs automatically every 6 hours via the scheduler
+
+> **Note:** If `UNIFI_CLOUD_API_KEY` is not set, the Controller & Application Updates section shows a hint explaining how to configure it. Device firmware tracking still works without it.
+
 ### Firmware Page
 
 - **Summary cards:** Total tracked, up-to-date, updates available
+- **Controller & Application Updates section:** Cards for any UniFi application with an update available (Network, Protect, Access, etc.), plus a table of up-to-date applications per console
 - **Updates Available section:** Highlighted cards showing device name, current version, available version
 - **Up to Date section:** Table of devices running latest firmware
-- **Manual check button:** Run an immediate scan (shows spinner while checking)
+- **Manual check button:** Run an immediate scan of both device firmware and controller updates (shows spinner while checking)
 - **Firmware Change History:** Table of all detected version changes with old → new version and timestamp
 
 ### Data Tracked
@@ -214,8 +233,8 @@ When a firmware update is newly detected, an alert is sent through all enabled n
 
 ### Requirements
 
-- UniFi Integration must be configured (API key, base URL, site ID in `.env`)
-- Devices must be managed by the UniFi controller
+- **Device firmware:** UniFi Integration must be configured (API key, base URL, site ID in `.env`), and devices must be managed by the UniFi controller
+- **Controller / application updates:** the Site Manager cloud API key (`UNIFI_CLOUD_API_KEY`) must be set in `.env` — get it from unifi.ui.com → Settings → API Keys (read-only key is fine)
 
 ---
 

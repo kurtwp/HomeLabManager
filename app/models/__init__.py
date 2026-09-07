@@ -18,6 +18,7 @@ from app.models.notification_log import NotificationLog
 from app.models.notification_preference import NotificationPreference
 from app.models.login_attempt import LoginAttempt
 from app.models.firmware_history import FirmwareHistory
+from app.models.controller_firmware import ControllerFirmware
 from app.services.mac_watchlist_service import KnownMAC
 from app.services.webhook_trigger_service import WebhookTrigger
 from app.services.domain_service import TrackedDomain
@@ -49,6 +50,7 @@ __all__ = [
     "NotificationPreference",
     "LoginAttempt",
     "FirmwareHistory",
+    "ControllerFirmware",
     "KnownMAC",
     "WebhookTrigger",
     "TrackedDomain",
