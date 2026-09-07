@@ -11,6 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./home_lab_manager.db")
 
 # App
 APP_TITLE = os.getenv("APP_TITLE", "Home Lab Manager")
+APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("APP_PORT", "8080"))
 STORAGE_SECRET = os.getenv("STORAGE_SECRET", secrets.token_hex(32))
 

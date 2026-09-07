@@ -9,7 +9,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from config import APP_TITLE, APP_PORT, STORAGE_SECRET
+from config import APP_TITLE, APP_HOST, APP_PORT, STORAGE_SECRET
 from app.database.db import init_db, get_session
 from app.database.pstn_db import init_pstn_db
 from app.services.seed import seed_defaults
@@ -366,6 +366,7 @@ nicegui_app.add_static_files("/static", "static")
 # --- Run ---
 ui.run(
     title=APP_TITLE,
+    host=APP_HOST,
     port=APP_PORT,
     native=False,
     reload=False,
